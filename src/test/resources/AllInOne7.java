@@ -52,7 +52,7 @@ public class LexerTest {
         int x10 = 05_2;            // OK (octal literal)
 
         int x, y, result;
-        
+
         // Arithmetic operators
         result = x + y;
         result = x - y;
@@ -109,12 +109,12 @@ public class LexerTest {
         // Conditional operators
         if ((x > 8) && (y > 8)) {
         }
- 
+
         if ((x > 10) || (y > 10)) {
         }
 
         result = (x > 10) ? x : y;
-        
+
         // Bitwise and Bit shift operators
         result = ~x;
         result = x << 1;
@@ -123,7 +123,7 @@ public class LexerTest {
         result = x & 4;
         result = x ^ 5;
         result = x | 6;
-        
+
         // Assignment operators
         result = x;
         result += x;
@@ -167,10 +167,10 @@ public class HelloWorld {
            System.out.println("Hello World!");
            and would have been incorrect without the import declaration. */
         out.println("Hello World!");
-        
+
         // Conditional statements -------------------
         if (i == 3) doSomething();
-        
+
         if (i == 2) {
             doSomething();
         } else {
@@ -184,11 +184,11 @@ public class HelloWorld {
         } else {
             doSomethingDifferent();
         }
-        
+
         int a = 1;
         int b = 2;
         int minVal = (a < b) ? a : b;
-        
+
         // switch
         switch (ch) {
             case 'A':
@@ -202,38 +202,38 @@ public class HelloWorld {
                 doSomethingDifferent(); // Triggered in any other case
                 break;
         }
-        
+
         // Iteration statements -------------------
         while (i < 10) {
             doSomething();
         }
-        
+
         do {
             doSomething();
         } while (i < 10);
-        
+
         for (int i = 0; i < 10; i++) {
             doSomething();
         }
-        
+
         // A more complex loop using two variables
         for (int i = 0, j = 9; i < 10; i++, j -= 3) {
             doSomething();
         }
-        
+
         for (;;) {
             doSomething();
         }
-        
+
         for (int i : intArray) {
             doSomething(i);
         }
-        
+
         // Jump statements -------------------
         // Label
         start:
             someMethod();
-        
+
         // break
         for (int i = 0; i < 10; i++) {
             while (true) {
@@ -241,7 +241,7 @@ public class HelloWorld {
             }
             // Will break to this point
         }
-        
+
         outer:
             for (int i = 0; i < 10; i++) {
                 while (true) {
@@ -260,7 +260,7 @@ public class HelloWorld {
             // Rest of the while-loop, will not be reached if ch == ' '
             doSomething();
         }
-        
+
         outer:
         for (String str : stringsArr) {
             char[] strChars = str.toCharArray();
@@ -273,7 +273,7 @@ public class HelloWorld {
                 doSomething(ch);
             }
         }
-        
+
         // return
         // If streamClosed is true, execution is stopped
         if (streamClosed) {
@@ -283,7 +283,7 @@ public class HelloWorld {
 
         int result = a + b;
         return result;
-        
+
         // Exception handling statements -------------------
         // try-catch-finally
         try {
@@ -296,14 +296,14 @@ public class HelloWorld {
             // Statements always executed after the try/catch blocks
             freeResources();
         }
-        
+
         try {
             methodThrowingExceptions();
         } catch (IOException | IllegalArgumentException ex) {
             //Both IOException and IllegalArgumentException will be caught and handled here
             reportException(ex);
         }
-        
+
         // try-with-resources statement
         try (FileOutputStream fos = new FileOutputStream("filename");
             XMLEncoder xEnc = new XMLEncoder(fos))
@@ -312,7 +312,7 @@ public class HelloWorld {
         } catch (IOException ex) {
             Logger.getLogger(Serializer.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         // throw
         if (obj == null) {
             // Throws exception of NullPointerException type
@@ -320,37 +320,37 @@ public class HelloWorld {
         }
         // Will not be called, if object is null
         doSomethingWithObject(obj);
-        
+
         // Thread concurrency control -------------------
         /* Acquires lock on someObject. It must be of a reference type and must be non-null */
         synchronized (someObject) {
             // Synchronized statements
         }
-        
+
         // assert statement
         // If n equals 0, AssertionError is thrown
         assert n != 0;
         /* If n equals 0, AssertionError will be thrown
         with the message after the colon */
         assert n != 0 : "n was equal to zero";
-        
+
         // Reference types -------------------
         // Arrays
         int[] numbers = new int[5];
         numbers[0] = 2;
         int x = numbers[0];
-        
+
         // Initializers -------------------
         // Long syntax
         int[] numbers = new int[] {20, 1, 42, 15, 34};
         // Short syntax
         int[] numbers2 = {20, 1, 42, 15, 34};
-        
+
         // Multi-dimensional arrays
         int[][] numbers = new int[3][3];
         numbers[1][2] = 2;
         int[][] numbers2 = {{2, 3, 2}, {1, 2, 6}, {2, 4, 5}};
-        
+
         int[][] numbers = new int[2][]; //Initialization of the first dimension only
         numbers[0] = new int[3];
         numbers[1] = new int[2];
@@ -368,7 +368,7 @@ public class HelloWorld {
 }
 
 // Classes -------------------
-// Top-level class 
+// Top-level class
 class Foo {
     // Class members
 }
@@ -455,10 +455,10 @@ class Foo {
     int bar(int a) {
         return a*2;
     }
-    
+
     void openStream() throws IOException, myException { // Indicates that IOException may be thrown
     }
-    
+
     // Varargs
     void printReport(String header, int... numbers) { //numbers represents varargs
         System.out.println(header);
@@ -563,7 +563,7 @@ public enum Season {
 interface ActionListener {
     int ACTION_ADD = 0;
     int ACTION_REMOVE = 1;
- 
+
     void actionSelected(int action);
 }
 
@@ -619,17 +619,17 @@ class Dummy {
 
 // Generics -------------------
 // Generic classes
-/* This class has two type variables, T and V. T must be 
+/* This class has two type variables, T and V. T must be
 a subtype of ArrayList and implement Formattable interface */
 public class Mapper<T extends ArrayList & Formattable, V> {
     public void add(T array, V item) {
         // array has add method because it is an ArrayList subclass
         array.add(item);
-        
+
         /* Mapper is created with CustomList as T and Integer as V.
         CustomList must be a subclass of ArrayList and implement Formattable */
         Mapper<CustomList, Integer> mapper = new Mapper<CustomList, Integer>();
-        
+
         Mapper<CustomList, ?> mapper;
         mapper = new Mapper<CustomList, Boolean>();
         mapper = new Mapper<CustomList, Integer>();
@@ -641,7 +641,7 @@ class Mapper {
     // The class itself is not generic, the constructor is
     <T, V> Mapper(T array, V item) {
     }
-    
+
     /* This method will accept only arrays of the same type as
     the searched item type or its subtype*/
     static <T, V extends T> boolean contains(T item, V[] arr) {

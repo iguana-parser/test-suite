@@ -521,13 +521,13 @@ lambdaBody
     ;
 
 primary
-    : '(' expression ')'        #parenthesisExpr
-    | THIS                      #literalExpr
-    | SUPER                     #literalExpr
-    | literal                   #literalExpr
-    | IDENTIFIER                #literalExpr
-    | typeTypeOrVoid '.' CLASS  #literalExpr
-    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments) #literalExpr
+    : '(' expression ')'
+    | THIS
+    | SUPER
+    | literal
+    | IDENTIFIER
+    | typeTypeOrVoid '.' CLASS
+    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)
     ;
 
 classType

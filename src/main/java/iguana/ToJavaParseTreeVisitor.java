@@ -1,298 +1,257 @@
 package iguana;
 
+import antlr4java.JavaLexer;
 import antlr4java.JavaParser;
 import antlr4java.JavaParserBaseVisitor;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import org.eclipse.jdt.core.dom.*;
 
 import java.util.List;
 import java.util.Objects;
 
 import static java.util.stream.Collectors.toList;
 
-public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<JsonNode> {
+public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
-    private ObjectMapper mapper = new ObjectMapper();
+    private AST ast = AST.newAST(AST.JLS10);
 
     @Override
-    public JsonNode visitCompilationUnit(JavaParser.CompilationUnitContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        ArrayNode typeDeclarations = node.putArray("typeDeclarations");
-        typeDeclarations.addAll(ctx.typeDeclaration().stream().map(td -> td.accept(this)).filter(Objects::nonNull).collect(toList()));
-        return node;
+    public ASTNode visitCompilationUnit(JavaParser.CompilationUnitContext ctx) {
+        CompilationUnit compilationUnit = ast.newCompilationUnit();
+        compilationUnit.types().addAll(ctx.typeDeclaration().stream().map(td -> td.accept(this)).filter(Objects::nonNull).collect(toList()));
+        return compilationUnit;
     }
 
     @Override
-    public JsonNode visitClassOrInterfaceTypeDeclaration(JavaParser.ClassOrInterfaceTypeDeclarationContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        ArrayNode modifiers = node.putArray("modifiers");
-        modifiers.addAll(ctx.classOrInterfaceModifier().stream().map(td -> td.accept(this)).filter(Objects::nonNull).collect(toList()));
+    public ASTNode visitClassOrInterfaceTypeDeclaration(JavaParser.ClassOrInterfaceTypeDeclarationContext ctx) {
+        ASTNode node;
 
-        JsonNode declNode;
         if (ctx.classDeclaration() != null) {
-            declNode = ctx.classDeclaration().accept(this);
-        } else if (ctx.enumDeclaration() != null) {
-            declNode = ctx.enumDeclaration().accept(this);
+            node = ctx.classDeclaration().accept(this);
         } else if (ctx.interfaceDeclaration() != null) {
-            declNode = ctx.interfaceDeclaration().accept(this);
+            node = ctx.interfaceDeclaration().accept(this);
+        } else if (ctx.enumDeclaration() != null) {
+            node = ctx.enumDeclaration().accept(this);
         } else if (ctx.annotationTypeDeclaration() != null){
-            declNode = ctx.annotationTypeDeclaration().accept(this);
+            node = ctx.annotationTypeDeclaration().accept(this);
         } else {
             throw new RuntimeException("Unexpected type declaration");
         }
 
-        node.set("decl", declNode);
+        ((BodyDeclaration) node).modifiers().addAll(ctx.classOrInterfaceModifier().stream().map(td -> td.accept(this)).filter(Objects::nonNull).collect(toList()));
         return node;
     }
 
     @Override
-    public JsonNode visitSemicolonTypeDeclaration(JavaParser.SemicolonTypeDeclarationContext ctx) {
-        return null;
-    }
-
-    @Override
-    public JsonNode visitClassOrInterfaceModifier(JavaParser.ClassOrInterfaceModifierContext ctx) {
+    public ASTNode visitClassOrInterfaceModifier(JavaParser.ClassOrInterfaceModifierContext ctx) {
         if (ctx.annotation() != null) {
             return ctx.annotation().accept(this);
-        } else {
-            return TextNode.valueOf(ctx.getChild(0).getText());
         }
+
+        return ast.newModifier(Modifier.ModifierKeyword.toKeyword(ctx.getChild(0).getText()));
     }
 
     @Override
-    public JsonNode visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        addName(node, ctx.IDENTIFIER());
+    public ASTNode visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
+        TypeDeclaration classDeclaration = ast.newTypeDeclaration();
+        classDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
 
         if (ctx.typeParameters() != null) {
-            ArrayNode typeParameters = node.putArray("typeParameters");
-            ctx.typeParameters().accept(this).forEach(typeParameters::add);
+            classDeclaration.typeParameters().addAll(createList(ctx.typeParameters().typeParameter()));
         }
 
         if (ctx.typeType() != null) {
-            node.put("extends", ctx.typeType().getText());
+            classDeclaration.setSuperclassType((Type) ctx.typeType().accept(this));
         }
 
         if (ctx.typeList() != null) {
-            node.set("implements", ctx.typeList().accept(this));
+            classDeclaration.superInterfaceTypes().addAll(createList(ctx.typeList().typeType()));
         }
 
-        node.set("classBody", ctx.classBody().accept(this));
-
-        return node;
+        classDeclaration.bodyDeclarations().addAll(createList(ctx.classBody().classBodyDeclaration()));
+        return classDeclaration;
     }
 
     @Override
-    public JsonNode visitTypeParameters(JavaParser.TypeParametersContext ctx) {
-        return createArrayNode(ctx.typeParameter());
+    public ASTNode visitTypeParameter(JavaParser.TypeParameterContext ctx) {
+        TypeParameter typeParameter = ast.newTypeParameter();
+        typeParameter.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
+
+        typeParameter.modifiers().add(createList(ctx.annotation()));
+
+        typeParameter.typeBounds().add(createList(ctx.typeBound().typeType()));
+
+        return typeParameter;
     }
 
     @Override
-    public JsonNode visitTypeParameter(JavaParser.TypeParameterContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        node.put("name", ctx.IDENTIFIER().getText());
+    public ASTNode visitTypeType(JavaParser.TypeTypeContext ctx) {
+        if (ctx.classOrInterfaceType() != null) {
+            return ctx.classOrInterfaceType().accept(this);
+        }
+        return ast.newPrimitiveType(PrimitiveType.toCode(ctx.primitiveType().getText()));
+    }
 
-        node.set("annotations", createArrayNode(ctx.annotation()));
+    @Override
+    public ASTNode visitClassOrInterfaceType(JavaParser.ClassOrInterfaceTypeContext ctx) {
+        int i = 0;
+        Type type = ast.newSimpleType(ast.newSimpleName(ctx.IDENTIFIER().get(i++).getText()));
 
-        ArrayNode typeBounds = node.putArray("typeBounds");
-        if (ctx.typeBound() != null) {
-            ctx.typeBound().accept(this).forEach(typeBounds::add);
+        if (ctx.getChildCount() > 1 && ctx.getChild(i) instanceof JavaParser.TypeArgumentsContext) {
+            ParameterizedType parameterizedType = ast.newParameterizedType(type);
+            parameterizedType.typeArguments().add(ctx.getChild(i++).accept(this));
+            type = parameterizedType;
         }
 
-        return node;
+        while (true) {
+            if (i >= ctx.getChildCount()) break;
+            if (isIdentifier(ctx.getChild(i))) {
+                type = ast.newQualifiedType(type, ast.newSimpleName(ctx.getChild(i).getText()));
+                if (i + 1 < ctx.getChildCount() && ctx.getChild(i + 1) instanceof JavaParser.TypeArgumentsContext) {
+                    type = ast.newParameterizedType(type);
+                    ((ParameterizedType) type).typeArguments().add(ctx.getChild(i + 1).accept(this));
+                    i++;
+                }
+                i++;
+            } else {
+                break;
+            }
+        }
+
+        return type;
     }
 
     @Override
-    public JsonNode visitTypeList(JavaParser.TypeListContext ctx) {
-        return createArrayNode(ctx.typeType());
+    public ASTNode visitTypeArgument(JavaParser.TypeArgumentContext ctx) {
+        TypeParameter typeParameter = ast.newTypeParameter();
+        return typeParameter;
     }
 
     @Override
-    public JsonNode visitTypeBound(JavaParser.TypeBoundContext ctx) {
-        return createArrayNode(ctx.typeType());
+    public ASTNode visitInterfaceDeclaration(JavaParser.InterfaceDeclarationContext ctx) {
+        TypeDeclaration interfaceDeclaration = ast.newTypeDeclaration();
+        interfaceDeclaration.setInterface(true);
+        interfaceDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
+        return interfaceDeclaration;
     }
 
     @Override
-    public JsonNode visitTypeType(JavaParser.TypeTypeContext ctx) {
-        return TextNode.valueOf(ctx.getText());
-    }
-
-    @Override
-    public JsonNode visitInterfaceDeclaration(JavaParser.InterfaceDeclarationContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        node.put("name", ctx.IDENTIFIER().getText());
-        return node;
-    }
-
-    @Override
-    public JsonNode visitEnumDeclaration(JavaParser.EnumDeclarationContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        node.put("name", ctx.IDENTIFIER().getText());
+    public ASTNode visitEnumDeclaration(JavaParser.EnumDeclarationContext ctx) {
+        EnumDeclaration enumDeclaration = ast.newEnumDeclaration();
+        enumDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
         if (ctx.typeList() != null) {
-            node.set("implements", ctx.typeList().accept(this));
+            enumDeclaration.superInterfaceTypes().addAll(createList(ctx.typeList().typeType()));
         }
-        if (ctx.enumConstants() != null) {
-            node.set("enumConstants", ctx.enumConstants().accept(this));
-        }
-        return node;
+        enumDeclaration.enumConstants().addAll(createList(ctx.enumConstants().enumConstant()));
+        return enumDeclaration;
     }
 
     @Override
-    public JsonNode visitEnumConstants(JavaParser.EnumConstantsContext ctx) {
-        return createArrayNode(ctx.enumConstant());
-    }
+    public EnumConstantDeclaration visitEnumConstant(JavaParser.EnumConstantContext ctx) {
+        EnumConstantDeclaration enumConstantDeclaration = ast.newEnumConstantDeclaration();
 
-    @Override
-    public JsonNode visitEnumConstant(JavaParser.EnumConstantContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        if (!ctx.annotation().isEmpty()) {
-            node.set("annotations", createArrayNode(ctx.annotation()));
-        }
+        enumConstantDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
 
-        node.put("name", ctx.IDENTIFIER().getText());
+        enumConstantDeclaration.modifiers().addAll(createList(ctx.annotation()));
 
         if (ctx.arguments() != null) {
-            node.set("arguments", ctx.arguments().accept(this));
+            enumConstantDeclaration.arguments().add(createList(ctx.arguments().expressionList().expression()));
         }
 
-        if (ctx.classBody() != null) {
-            node.set("classBody", ctx.classBody().accept(this));
-        }
-
-        return node;
+        return enumConstantDeclaration;
     }
 
     @Override
-    public JsonNode visitArguments(JavaParser.ArgumentsContext ctx) {
-        if (ctx.expressionList() == null) {
-            return mapper.createArrayNode();
-        }
-        return ctx.expressionList().accept(this);
+    public ASTNode visitBlockClassBodyDeclration(JavaParser.BlockClassBodyDeclrationContext ctx) {
+        Block block = ast.newBlock();
+        block.statements().addAll(createList(ctx.block().blockStatement()));
+        return block;
     }
 
     @Override
-    public JsonNode visitClassBody(JavaParser.ClassBodyContext ctx) {
-        return createArrayNode(ctx.classBodyDeclaration());
-    }
-
-    @Override
-    public JsonNode visitBlockClassBodyDeclration(JavaParser.BlockClassBodyDeclrationContext ctx) {
-        ObjectNode node = createJsonNode("ClassBodyDeclaration");
-
-        if (ctx.STATIC() != null) {
-            node.put("static", true);
-        } else {
-            node.put("static", false);
-        }
-
-        node.set("block", ctx.block().accept(this));
-
-        return node;
-    }
-
-    @Override
-    public JsonNode visitBlock(JavaParser.BlockContext ctx) {
-        return createArrayNode(ctx.blockStatement());
-    }
-
-    @Override
-    public JsonNode visitBlockStatement(JavaParser.BlockStatementContext ctx) {
+    public ASTNode visitBlockStatement(JavaParser.BlockStatementContext ctx) {
         return ctx.getChild(0).accept(this);
     }
 
     @Override
-    public JsonNode visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-
-        if (!ctx.variableModifier().isEmpty()) {
-            node.set("modifiers", createArrayNode(ctx.variableModifier()));
-        }
-
-        node.put("type", ctx.typeType().getText());
-
-        node.set("variableDeclarators", ctx.variableDeclarators().accept(this));
-
-        return node;
+    public ASTNode visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
+        VariableDeclarationExpression variableDeclaration = (VariableDeclarationExpression) ctx.variableDeclarators().accept(this);
+        variableDeclaration.setType((Type) ctx.typeType().accept(this));
+        variableDeclaration.modifiers().addAll(createList(ctx.variableModifier()));
+        return variableDeclaration;
     }
 
     @Override
-    public JsonNode visitVariableDeclarators(JavaParser.VariableDeclaratorsContext ctx) {
-        return createArrayNode(ctx.variableDeclarator());
+    public VariableDeclarationExpression visitVariableDeclarators(JavaParser.VariableDeclaratorsContext ctx) {
+        VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+        fragment.setName(ast.newSimpleName(ctx.variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText()));
+        fragment.setInitializer((Expression) ctx.variableDeclarator(0).accept(this));
+        VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragment);
+
+        // TODO: add other fragments
+        return variableDeclarationExpression;
     }
 
     @Override
-    public JsonNode visitVariableDeclarator(JavaParser.VariableDeclaratorContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        node.put("id", ctx.variableDeclaratorId().getText());
-        if (ctx.variableInitializer() != null) {
-            node.set("variableInitializer", ctx.variableInitializer().accept(this));
-        }
-        return node;
-    }
-
-    @Override
-    public JsonNode visitVariableInitializer(JavaParser.VariableInitializerContext ctx) {
+    public ASTNode visitVariableInitializer(JavaParser.VariableInitializerContext ctx) {
         return ctx.getChild(0).accept(this);
     }
 
     @Override
-    public JsonNode visitArrayInitializer(JavaParser.ArrayInitializerContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        node.set("variableInitializers", createArrayNode(ctx.variableInitializer()));
-        return node;
+    public ASTNode visitArrayInitializer(JavaParser.ArrayInitializerContext ctx) {
+        ArrayInitializer arrayInitializer = ast.newArrayInitializer();
+        arrayInitializer.expressions().addAll(createList(ctx.variableInitializer()));
+        return arrayInitializer;
     }
 
     @Override
-    public JsonNode visitExpressionList(JavaParser.ExpressionListContext ctx) {
-        return createArrayNode(ctx.expression());
-    }
-
-    @Override
-    public JsonNode visitPrimaryExpr(JavaParser.PrimaryExprContext ctx) {
+    public ASTNode visitPrimaryExpr(JavaParser.PrimaryExprContext ctx) {
         return ctx.primary().accept(this);
     }
 
     @Override
-    public JsonNode visitParenthesisExpr(JavaParser.ParenthesisExprContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        node.set("expression", ctx.expression().accept(this));
-        return node;
+    public ASTNode visitPrimary(JavaParser.PrimaryContext ctx) {
+        if (ctx.expression() != null) {
+            return ctx.expression().accept(this);
+        } else if (ctx.THIS() != null) {
+            return ast.newThisExpression();
+        } else if (ctx.SUPER() != null) {
+            return ast.newSuperFieldAccess();
+        } else if (ctx.literal() != null) {
+            return ctx.literal().accept(this);
+        } else if (ctx.IDENTIFIER() != null) {
+            return ast.newSimpleName(ctx.IDENTIFIER().getText());
+        } else if (ctx.typeTypeOrVoid() != null) {
+            TypeLiteral typeLiteral = ast.newTypeLiteral();
+            typeLiteral.setType((Type) ctx.typeTypeOrVoid().accept(this));
+            return typeLiteral;
+        } else {
+            throw new RuntimeException();
+        }
     }
 
     @Override
-    public JsonNode visitLiteralExpr(JavaParser.LiteralExprContext ctx) {
-        return TextNode.valueOf(ctx.getText());
+    public ASTNode visitTypeTypeOrVoid(JavaParser.TypeTypeOrVoidContext ctx) {
+        if (ctx.VOID() != null) {
+            return ast.newPrimitiveType(PrimitiveType.VOID);
+        } else {
+            return ctx.typeType().accept(this);
+        }
     }
 
-    @Override
-    public JsonNode visitAnnotationTypeDeclaration(JavaParser.AnnotationTypeDeclarationContext ctx) {
-        ObjectNode node = createJsonNode(ctx);
-        addName(node, ctx.IDENTIFIER());
-        return node;
+    public ASTNode visitAnnotationTypeDeclaration(JavaParser.AnnotationTypeDeclarationContext ctx) {
+        AnnotationTypeDeclaration annotationTypeDeclaration = ast.newAnnotationTypeDeclaration();
+        annotationTypeDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
+        return annotationTypeDeclaration;
     }
 
-    private ObjectNode createJsonNode(ParserRuleContext ctx) {
-        return createJsonNode(ctx.getClass().getSimpleName());
+    private <T extends ParserRuleContext> List createList(List<T> list) {
+        return list.stream().map(annotation -> annotation.accept(this)).filter(Objects::nonNull).collect(toList());
     }
 
-    private ObjectNode createJsonNode(String name) {
-        ObjectNode node = mapper.createObjectNode();
-        node.put("kind", name.substring(0, name.length() - "context".length()));
-        return node;
-    }
-
-    private <T extends ParserRuleContext> ArrayNode createArrayNode(List<T> list) {
-        ArrayNode annotations = mapper.createArrayNode();
-        annotations.addAll(list.stream().map(annotation -> annotation.accept(this)).filter(Objects::nonNull).collect(toList()));
-        return annotations;
-    }
-
-    private void addName(ObjectNode node, TerminalNode identifier) {
-        node.put("name", identifier.getText());
+    private boolean isIdentifier(ParseTree node) {
+        return node instanceof TerminalNode && ((TerminalNode) node).getSymbol().getType() == JavaLexer.IDENTIFIER;
     }
 }

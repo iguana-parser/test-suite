@@ -1,8 +1,7 @@
 package iguana;
 
 import antlr4java.JavaParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -19,9 +18,7 @@ public class TestAntlrParseTreeSerializer {
         URI uri = TestAntlrParseTreeSerializer.class.getClassLoader().getResource("AllInOne7.java").toURI();
         String input = getFileContent(Paths.get(uri));
         JavaParser.CompilationUnitContext compilationUnit = parser.parse(input);
-        JsonNode result = compilationUnit.accept(new ToJavaParseTreeVisitor());
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+        ASTNode result = compilationUnit.accept(new ToJavaParseTreeVisitor());
         System.out.println(result);
     }
 }
