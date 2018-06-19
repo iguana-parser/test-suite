@@ -44,9 +44,8 @@ importDeclaration
     ;
 
 typeDeclaration
-    : classOrInterfaceModifier*
-      (classDeclaration | enumDeclaration | interfaceDeclaration | annotationTypeDeclaration)
-    | ';'
+    : classOrInterfaceModifier* (classDeclaration | enumDeclaration | interfaceDeclaration | annotationTypeDeclaration) #classOrInterfaceTypeDeclaration
+    | ';'   #semicolonTypeDeclaration
     ;
 
 modifier
@@ -121,9 +120,9 @@ interfaceBody
     ;
 
 classBodyDeclaration
-    : ';'
-    | STATIC? block
-    | modifier* memberDeclaration
+    : ';'                               #emptyClassBodyDeclaration
+    | STATIC? block                     #blockClassBodyDeclration
+    | modifier* memberDeclaration       #memberClassBodyDeclaration
     ;
 
 memberDeclaration
@@ -464,7 +463,7 @@ methodCall
     ;
 
 expression
-    : primary
+    : primary                                                       #primaryExpr
     | expression bop='.'
       ( IDENTIFIER
       | methodCall
@@ -472,35 +471,35 @@ expression
       | NEW nonWildcardTypeArguments? innerCreator
       | SUPER superSuffix
       | explicitGenericInvocation
-      )
-    | expression '[' expression ']'
-    | methodCall
-    | NEW creator
-    | '(' typeType ')' expression
-    | expression postfix=('++' | '--')
-    | prefix=('+'|'-'|'++'|'--') expression
-    | prefix=('~'|'!') expression
-    | expression bop=('*'|'/'|'%') expression
-    | expression bop=('+'|'-') expression
-    | expression ('<' '<' | '>' '>' '>' | '>' '>') expression
-    | expression bop=('<=' | '>=' | '>' | '<') expression
-    | expression bop=INSTANCEOF typeType
-    | expression bop=('==' | '!=') expression
-    | expression bop='&' expression
-    | expression bop='^' expression
-    | expression bop='|' expression
-    | expression bop='&&' expression
-    | expression bop='||' expression
-    | expression bop='?' expression ':' expression
+      )                                                             #applicationExpr
+    | expression '[' expression ']'                                 #bracketExpr
+    | methodCall                                                    #methodCallExpr
+    | NEW creator                                                   #newExpr
+    | '(' typeType ')' expression                                   #typeCastExpr
+    | expression postfix=('++' | '--')                              #postfixExpr
+    | prefix=('+'|'-'|'++'|'--') expression                         #prefixExpr
+    | prefix=('~'|'!') expression                                   #prefixExpr
+    | expression bop=('*'|'/'|'%') expression                       #binaryExpr
+    | expression bop=('+'|'-') expression                           #binaryExpr
+    | expression ('<' '<' | '>' '>' '>' | '>' '>') expression       #binaryExpr
+    | expression bop=('<=' | '>=' | '>' | '<') expression           #binaryExpr
+    | expression bop=INSTANCEOF typeType                            #instanceOfExpr
+    | expression bop=('==' | '!=') expression                       #binaryExpr
+    | expression bop='&' expression                                 #binaryExpr
+    | expression bop='^' expression                                 #binaryExpr
+    | expression bop='|' expression                                 #binaryExpr
+    | expression bop='&&' expression                                #binaryExpr
+    | expression bop='||' expression                                #binaryExpr
+    | expression bop='?' expression ':' expression                  #ternaryExpr
     | <assoc=right> expression
       bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=')
-      expression
-    | lambdaExpression // Java8
+      expression                                                    #binaryExpr
+    | lambdaExpression                                              #lambdaExpr    // Java8
 
     // Java 8 methodReference
-    | expression '::' typeArguments? IDENTIFIER
-    | typeType '::' (typeArguments? IDENTIFIER | NEW)
-    | classType '::' typeArguments? NEW
+    | expression '::' typeArguments? IDENTIFIER                     #methodReferenceExpr
+    | typeType '::' (typeArguments? IDENTIFIER | NEW)               #methodReferenceExpr
+    | classType '::' typeArguments? NEW                             #methodReferenceExpr
     ;
 
 // Java8
@@ -522,13 +521,13 @@ lambdaBody
     ;
 
 primary
-    : '(' expression ')'
-    | THIS
-    | SUPER
-    | literal
-    | IDENTIFIER
-    | typeTypeOrVoid '.' CLASS
-    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)
+    : '(' expression ')'        #parenthesisExpr
+    | THIS                      #literalExpr
+    | SUPER                     #literalExpr
+    | literal                   #literalExpr
+    | IDENTIFIER                #literalExpr
+    | typeTypeOrVoid '.' CLASS  #literalExpr
+    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments) #literalExpr
     ;
 
 classType
