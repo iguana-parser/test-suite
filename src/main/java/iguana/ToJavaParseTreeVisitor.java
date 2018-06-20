@@ -8,6 +8,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.eclipse.jdt.core.dom.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -54,7 +55,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     }
 
     @Override
-    public ASTNode visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
+    public TypeDeclaration visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
         TypeDeclaration classDeclaration = ast.newTypeDeclaration();
         classDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
 
@@ -79,9 +80,11 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         TypeParameter typeParameter = ast.newTypeParameter();
         typeParameter.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
 
-        typeParameter.modifiers().add(createList(ctx.annotation()));
+        typeParameter.modifiers().addAll(createList(ctx.annotation()));
 
-        typeParameter.typeBounds().add(createList(ctx.typeBound().typeType()));
+        if (ctx.typeBound() != null) {
+            typeParameter.typeBounds().addAll(createList(ctx.typeBound().typeType()));
+        }
 
         return typeParameter;
     }
@@ -100,8 +103,9 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         Type type = ast.newSimpleType(ast.newSimpleName(ctx.IDENTIFIER().get(i++).getText()));
 
         if (ctx.getChildCount() > 1 && ctx.getChild(i) instanceof JavaParser.TypeArgumentsContext) {
+
             ParameterizedType parameterizedType = ast.newParameterizedType(type);
-            parameterizedType.typeArguments().add(ctx.getChild(i++).accept(this));
+            parameterizedType.typeArguments().addAll(createList(((JavaParser.TypeArgumentsContext) ctx.getChild(i++)).typeArgument()));
             type = parameterizedType;
         }
 
@@ -124,9 +128,17 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     }
 
     @Override
-    public ASTNode visitTypeArgument(JavaParser.TypeArgumentContext ctx) {
-        TypeParameter typeParameter = ast.newTypeParameter();
-        return typeParameter;
+    public ASTNode visitSimpleTypeArgument(JavaParser.SimpleTypeArgumentContext ctx) {
+        return ctx.typeType().accept(this);
+    }
+
+    @Override
+    public ASTNode visitWildCardTypeArgument(JavaParser.WildCardTypeArgumentContext ctx) {
+        WildcardType wildcardType = ast.newWildcardType();
+        if (ctx.typeType() != null) {
+            wildcardType.setBound((Type) ctx.typeType().accept(this));
+        }
+        return wildcardType;
     }
 
     @Override
@@ -157,30 +169,64 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         enumConstantDeclaration.modifiers().addAll(createList(ctx.annotation()));
 
         if (ctx.arguments() != null) {
-            enumConstantDeclaration.arguments().add(createList(ctx.arguments().expressionList().expression()));
+            enumConstantDeclaration.arguments().addAll(createList(ctx.arguments().expressionList().expression()));
         }
 
         return enumConstantDeclaration;
     }
 
     @Override
-    public ASTNode visitBlockClassBodyDeclration(JavaParser.BlockClassBodyDeclrationContext ctx) {
+    public ASTNode visitClassBodyDeclaration(JavaParser.ClassBodyDeclarationContext ctx) {
+        if (ctx.block() != null) {
+            Initializer initializer = ast.newInitializer();
+            Block body = (Block) ctx.block().accept(this);
+            if (body != null) {
+                initializer.setBody(body);
+            }
+            return initializer;
+        }
+        else if (ctx.memberDeclaration() != null) {
+            return null;
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public ASTNode visitBlock(JavaParser.BlockContext ctx) {
         Block block = ast.newBlock();
-        block.statements().addAll(createList(ctx.block().blockStatement()));
+        block.statements().addAll(createList(ctx.blockStatement()));
         return block;
     }
 
     @Override
     public ASTNode visitBlockStatement(JavaParser.BlockStatementContext ctx) {
-        return ctx.getChild(0).accept(this);
+        if (ctx.localVariableDeclaration() != null) {
+            List<VariableDeclarationFragment> fragments = getVariableDeclarationFragment(ctx.localVariableDeclaration());
+            VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragments.get(0));
+            variableDeclarationStatement.setType((Type) ctx.localVariableDeclaration().typeType().accept(this));
+            variableDeclarationStatement.modifiers().addAll(createList(ctx.localVariableDeclaration().variableModifier()));
+            return variableDeclarationStatement;
+        } else if (ctx.statement() != null) {
+            return ctx.statement().accept(this);
+        } else {
+            return ctx.localTypeDeclaration().accept(this);
+        }
     }
 
-    @Override
-    public ASTNode visitLocalVariableDeclaration(JavaParser.LocalVariableDeclarationContext ctx) {
-        VariableDeclarationExpression variableDeclaration = (VariableDeclarationExpression) ctx.variableDeclarators().accept(this);
-        variableDeclaration.setType((Type) ctx.typeType().accept(this));
-        variableDeclaration.modifiers().addAll(createList(ctx.variableModifier()));
-        return variableDeclaration;
+    private List<VariableDeclarationFragment> getVariableDeclarationFragment(JavaParser.LocalVariableDeclarationContext ctx) {
+        List<VariableDeclarationFragment> fragments = new ArrayList<>();
+
+        for (JavaParser.VariableDeclaratorContext variableDeclaratorContext : ctx.variableDeclarators().variableDeclarator()) {
+            VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+            fragment.setName(ast.newSimpleName(variableDeclaratorContext.variableDeclaratorId().IDENTIFIER().getText()));
+            if (variableDeclaratorContext.variableInitializer() != null) {
+                fragment.setInitializer((Expression) variableDeclaratorContext.variableInitializer().accept(this));
+            }
+            fragments.add(fragment);
+        }
+
+        return fragments;
     }
 
     @Override
@@ -247,7 +293,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         return annotationTypeDeclaration;
     }
 
-    private <T extends ParserRuleContext> List createList(List<T> list) {
+    private <T extends ParserRuleContext> List<ASTNode> createList(List<T> list) {
         return list.stream().map(annotation -> annotation.accept(this)).filter(Objects::nonNull).collect(toList());
     }
 

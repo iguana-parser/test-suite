@@ -120,9 +120,9 @@ interfaceBody
     ;
 
 classBodyDeclaration
-    : ';'                               #emptyClassBodyDeclaration
-    | STATIC? block                     #blockClassBodyDeclration
-    | modifier* memberDeclaration       #memberClassBodyDeclaration
+    : ';'
+    | STATIC? block
+    | modifier* memberDeclaration
     ;
 
 memberDeclaration
@@ -244,8 +244,8 @@ classOrInterfaceType
     ;
 
 typeArgument
-    : typeType
-    | '?' ((EXTENDS | SUPER) typeType)?
+    : typeType                          #simpleTypeArgument
+    | '?' ((EXTENDS | SUPER) typeType)? #wildCardTypeArgument
     ;
 
 qualifiedNameList
