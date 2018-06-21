@@ -9,6 +9,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import org.eclipse.jdt.core.dom.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -52,6 +53,45 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         }
 
         return ast.newModifier(Modifier.ModifierKeyword.toKeyword(ctx.getChild(0).getText()));
+    }
+
+    @Override
+    public Annotation visitAnnotation(JavaParser.AnnotationContext ctx) {
+        Annotation annotation;
+
+        if (ctx.elementValue() == null && ctx.elementValuePairs() == null) {             // MarkerAnnotation
+            annotation = ast.newMarkerAnnotation();
+        } else if (ctx.elementValuePairs() == null) { // SingleValueAnnoation
+            annotation = ast.newSingleMemberAnnotation();
+            ((SingleMemberAnnotation) annotation).setValue((Expression) ctx.elementValue().accept(this));
+        } else {
+            annotation = ast.newNormalAnnotation();
+            ((NormalAnnotation) annotation).values().addAll(createList(ctx.elementValuePairs().elementValuePair()));
+        }
+
+        annotation.setTypeName((Name) ctx.qualifiedName().accept(this));
+        return annotation;
+    }
+
+    @Override
+    public ASTNode visitElementValue(JavaParser.ElementValueContext ctx) {
+        return ctx.getChild(0).accept(this);
+    }
+
+    @Override
+    public ASTNode visitElementValuePair(JavaParser.ElementValuePairContext ctx) {
+        MemberValuePair memberValuePair = ast.newMemberValuePair();
+        memberValuePair.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
+        memberValuePair.setValue((Expression) ctx.elementValue().accept(this));
+        return memberValuePair;
+    }
+
+    @Override
+    public ASTNode visitVariableModifier(JavaParser.VariableModifierContext ctx) {
+        if (ctx.annotation() != null) {
+            return ctx.annotation().accept(this);
+        }
+        return ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD);
     }
 
     @Override
@@ -186,10 +226,19 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             return initializer;
         }
         else if (ctx.memberDeclaration() != null) {
-            return null;
+            BodyDeclaration bodyDeclaration = (BodyDeclaration) ctx.memberDeclaration().accept(this);
+            if (bodyDeclaration != null) { // TODO: Remove this null when all the cases for body declaration are added
+                bodyDeclaration.modifiers().addAll(createList(ctx.modifier()));
+            }
+            return bodyDeclaration;
         } else {
             return null;
         }
+    }
+
+    @Override
+    public ASTNode visitMemberDeclaration(JavaParser.MemberDeclarationContext ctx) {
+        return ctx.getChild(0).accept(this);
     }
 
     @Override
@@ -197,6 +246,59 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         Block block = ast.newBlock();
         block.statements().addAll(createList(ctx.blockStatement()));
         return block;
+    }
+
+    @Override
+    public ASTNode visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
+        MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
+        methodDeclaration.setReturnType2((Type) ctx.typeTypeOrVoid().accept(this));
+        methodDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
+        methodDeclaration.parameters().addAll(getFormalParameters(ctx.formalParameters()));
+        if (ctx.qualifiedNameList() != null) {
+            methodDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()).stream().map(name -> convertNameToType((Name) name)).collect(toList()));
+        }
+        return methodDeclaration;
+    }
+
+    @Override
+    public ASTNode visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
+        MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
+        constructorDeclaration.setConstructor(true);
+        constructorDeclaration.parameters().addAll(getFormalParameters(ctx.formalParameters()));
+        constructorDeclaration.setName(ast.newSimpleName(ctx.IDENTIFIER().getText()));
+        if (ctx.qualifiedNameList() != null) {
+            constructorDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()));
+        }
+        return constructorDeclaration;
+    }
+
+    @Override
+    public ASTNode visitQualifiedName(JavaParser.QualifiedNameContext ctx) {
+        List<TerminalNode> identifiers = ctx.IDENTIFIER();
+        SimpleName simpleName = ast.newSimpleName(identifiers.get(0).getText());
+        if (identifiers.size() == 1) {
+            return simpleName;
+        }
+
+        Name qualifier = simpleName;
+        simpleName = ast.newSimpleName(identifiers.get(1).getText());
+        qualifier = ast.newQualifiedName(qualifier, simpleName);
+
+        for (int i = 2; i < identifiers.size(); i++) {
+            simpleName = ast.newSimpleName(identifiers.get(i).getText());
+            qualifier = ast.newQualifiedName(qualifier, simpleName);
+        }
+
+        return qualifier;
+    }
+
+    @Override
+    public ASTNode visitFormalParameter(JavaParser.FormalParameterContext ctx) {
+        SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+        singleVariableDeclaration.setType((Type) ctx.typeType().accept(this));
+        singleVariableDeclaration.modifiers().addAll(createList(ctx.variableModifier()));
+        singleVariableDeclaration.setName(ast.newSimpleName(ctx.variableDeclaratorId().IDENTIFIER().getText()));
+        return super.visitFormalParameter(ctx);
     }
 
     @Override
@@ -270,11 +372,36 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         } else if (ctx.IDENTIFIER() != null) {
             return ast.newSimpleName(ctx.IDENTIFIER().getText());
         } else if (ctx.typeTypeOrVoid() != null) {
-            TypeLiteral typeLiteral = ast.newTypeLiteral();
-            typeLiteral.setType((Type) ctx.typeTypeOrVoid().accept(this));
-            return typeLiteral;
+            return ctx.typeTypeOrVoid().accept(this);
         } else {
             throw new RuntimeException();
+        }
+    }
+
+    @Override
+    public ASTNode visitMethodCallExpr(JavaParser.MethodCallExprContext ctx) {
+        MethodInvocation methodInvocation = ast.newMethodInvocation();
+        methodInvocation.setName(ast.newSimpleName(ctx.methodCall().IDENTIFIER().getText()));
+        return methodInvocation;
+    }
+
+    @Override
+    public ASTNode visitLiteral(JavaParser.LiteralContext ctx) {
+        if (ctx.BOOL_LITERAL() != null) {
+            return ast.newBooleanLiteral(Boolean.parseBoolean(ctx.BOOL_LITERAL().getText()));
+        } else if (ctx.CHAR_LITERAL() != null) {
+            CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+            characterLiteral.setCharValue(ctx.CHAR_LITERAL().getText().charAt(0));
+            return characterLiteral;
+        } else if (ctx.NULL_LITERAL() != null) {
+            return ast.newNullLiteral();
+        } else if (ctx.STRING_LITERAL() != null) {
+            StringLiteral stringLiteral = ast.newStringLiteral();
+            String text = ctx.STRING_LITERAL().getText();
+            stringLiteral.setLiteralValue(text.substring(1, text.length() - 1));
+            return stringLiteral;
+        } else  { // integer or float literal
+            return ast.newNumberLiteral(ctx.integerLiteral().getText());
         }
     }
 
@@ -293,11 +420,51 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         return annotationTypeDeclaration;
     }
 
+    private List<SingleVariableDeclaration> getFormalParameters(JavaParser.FormalParametersContext ctx) {
+        if (ctx.formalParameterList() == null) {
+            return Collections.emptyList();
+        }
+
+        final List<SingleVariableDeclaration> list = new ArrayList<>();
+        if (ctx.formalParameterList().getChild(0) instanceof JavaParser.FormalParameterContext) {
+            createList(ctx.formalParameterList().formalParameter()).forEach(formalParameter -> list.add((SingleVariableDeclaration) formalParameter));
+            if (ctx.formalParameterList().lastFormalParameter() != null) {
+                SingleVariableDeclaration formalParameter = (SingleVariableDeclaration) ctx.formalParameterList().lastFormalParameter().accept(this);
+                if (formalParameter != null) { // TODO: Remove it later
+                    list.add(formalParameter);
+                }
+            }
+        } else {
+            list.add((SingleVariableDeclaration) ctx.formalParameterList().lastFormalParameter().accept(this));
+        }
+
+        return list;
+    }
+
+    @Override
+    public ASTNode visitLastFormalParameter(JavaParser.LastFormalParameterContext ctx) {
+        SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+        singleVariableDeclaration.setType((Type) ctx.typeType().accept(this));
+        singleVariableDeclaration.modifiers().addAll(createList(ctx.variableModifier()));
+        singleVariableDeclaration.setVarargs(true);
+        singleVariableDeclaration.setName(ast.newSimpleName(ctx.variableDeclaratorId().IDENTIFIER().getText()));
+        return super.visitLastFormalParameter(ctx);
+    }
+
     private <T extends ParserRuleContext> List<ASTNode> createList(List<T> list) {
         return list.stream().map(annotation -> annotation.accept(this)).filter(Objects::nonNull).collect(toList());
     }
 
     private boolean isIdentifier(ParseTree node) {
         return node instanceof TerminalNode && ((TerminalNode) node).getSymbol().getType() == JavaLexer.IDENTIFIER;
+    }
+
+    private Type convertNameToType(Name name) {
+        if (name.isSimpleName()) {
+            return ast.newSimpleType(name);
+        } else {
+            QualifiedName qualifiedName = (QualifiedName) name;
+            return ast.newQualifiedType(convertNameToType(qualifiedName.getQualifier()), qualifiedName.getName());
+        }
     }
 }
