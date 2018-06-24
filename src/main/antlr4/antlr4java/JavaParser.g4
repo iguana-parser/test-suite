@@ -143,9 +143,7 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    : typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')*
-      (THROWS qualifiedNameList)?
-      methodBody
+    : typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')* (THROWS qualifiedNameList)? methodBody
     ;
 
 methodBody
@@ -584,7 +582,11 @@ typeList
     ;
 
 typeType
-    : annotation? (classOrInterfaceType | primitiveType) ('[' ']')*
+    : annotation? (classOrInterfaceType | primitiveType) dimensions
+    ;
+
+dimensions
+    : ('[' ']')*
     ;
 
 primitiveType

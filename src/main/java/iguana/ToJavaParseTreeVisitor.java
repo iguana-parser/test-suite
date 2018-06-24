@@ -131,10 +131,18 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
     @Override
     public Type visitTypeType(JavaParser.TypeTypeContext ctx) {
+        Type type;
         if (ctx.classOrInterfaceType() != null) {
-            return (Type) ctx.classOrInterfaceType().accept(this);
+            type = (Type) ctx.classOrInterfaceType().accept(this);
+        } else {
+            type = ast.newPrimitiveType(PrimitiveType.toCode(ctx.primitiveType().getText()));
         }
-        return ast.newPrimitiveType(PrimitiveType.toCode(ctx.primitiveType().getText()));
+
+        if (ctx.dimensions().children != null) { // Array type
+            type = ast.newArrayType(type, ctx.dimensions().children.size() / 2);
+        }
+
+        return type;
     }
 
     @Override
@@ -504,6 +512,14 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         castExpression.setType((Type) ctx.typeType().accept(this));
         castExpression.setExpression((Expression) ctx.expression().accept(this));
         return castExpression;
+    }
+
+    @Override
+    public ASTNode visitPrefixExpr(JavaParser.PrefixExprContext ctx) {
+        PrefixExpression prefixExpression = ast.newPrefixExpression();
+        prefixExpression.setOperand((Expression) ctx.expression().accept(this));
+        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(ctx.prefix.getText()));
+        return prefixExpression;
     }
 
     @Override
