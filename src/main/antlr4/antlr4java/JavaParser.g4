@@ -373,29 +373,28 @@ localVariableDeclaration
     ;
 
 localTypeDeclaration
-    : classOrInterfaceModifier*
-      (classDeclaration | interfaceDeclaration)
+    : classOrInterfaceModifier* (classDeclaration | interfaceDeclaration)
     | ';'
     ;
 
 statement
-    : blockLabel=block
-    | ASSERT expression (':' expression)? ';'
-    | IF parExpression statement (ELSE statement)?
-    | FOR '(' forControl ')' statement
-    | WHILE parExpression statement
-    | DO statement WHILE parExpression ';'
-    | TRY block (catchClause+ finallyBlock? | finallyBlock)
-    | TRY resourceSpecification block catchClause* finallyBlock?
-    | SWITCH parExpression '{' switchBlockStatementGroup* switchLabel* '}'
-    | SYNCHRONIZED parExpression block
-    | RETURN expression? ';'
-    | THROW expression ';'
-    | BREAK IDENTIFIER? ';'
-    | CONTINUE IDENTIFIER? ';'
-    | SEMI
-    | statementExpression=expression ';'
-    | identifierLabel=IDENTIFIER ':' statement
+    : blockLabel=block                                                          #blockStmt
+    | ASSERT expr=expression (':' message=expression)? ';'                      #assertStmt
+    | IF parExpression thenBranch=statement (ELSE elseBranch=statement)?        #ifStmt
+    | FOR '(' forControl ')' statement                                          #forStmt
+    | WHILE parExpression statement                                             #whileStmt
+    | DO statement WHILE parExpression ';'                                      #doStmt
+    | TRY block (catchClause+ finallyBlock? | finallyBlock)                     #tryStmt
+    | TRY resourceSpecification block catchClause* finallyBlock?                #tryWithResourcesStmt
+    | SWITCH parExpression '{' switchBlockStatementGroup* switchLabel* '}'      #switchStmt
+    | SYNCHRONIZED parExpression block                                          #synchronizedStmt
+    | RETURN expression? ';'                                                    #returnStmt
+    | THROW expression ';'                                                      #throwStmt
+    | BREAK IDENTIFIER? ';'                                                     #breakStmt
+    | CONTINUE IDENTIFIER? ';'                                                  #continueStmt
+    | SEMI                                                                      #emptyStmt
+    | statementExpression=expression ';'                                        #expressionStmt
+    | identifierLabel=IDENTIFIER ':' statement                                  #labelStmt
     ;
 
 catchClause
@@ -471,35 +470,41 @@ expression
       | NEW nonWildcardTypeArguments? innerCreator
       | SUPER superSuffix
       | explicitGenericInvocation
-      )                                                             #applicationExpr
-    | expression '[' expression ']'                                 #bracketExpr
-    | methodCall                                                    #methodCallExpr
-    | NEW creator                                                   #newExpr
-    | '(' typeType ')' expression                                   #typeCastExpr
-    | expression postfix=('++' | '--')                              #postfixExpr
-    | prefix=('+'|'-'|'++'|'--') expression                         #prefixExpr
-    | prefix=('~'|'!') expression                                   #prefixExpr
-    | expression bop=('*'|'/'|'%') expression                       #binaryExpr
-    | expression bop=('+'|'-') expression                           #binaryExpr
-    | expression ('<' '<' | '>' '>' '>' | '>' '>') expression       #binaryExpr
-    | expression bop=('<=' | '>=' | '>' | '<') expression           #binaryExpr
-    | expression bop=INSTANCEOF typeType                            #instanceOfExpr
-    | expression bop=('==' | '!=') expression                       #binaryExpr
-    | expression bop='&' expression                                 #binaryExpr
-    | expression bop='^' expression                                 #binaryExpr
-    | expression bop='|' expression                                 #binaryExpr
-    | expression bop='&&' expression                                #binaryExpr
-    | expression bop='||' expression                                #binaryExpr
-    | expression bop='?' expression ':' expression                  #ternaryExpr
-    | <assoc=right> expression
+      )                                                                     #fieldAccessExpr
+    | array=expression '[' index=expression ']'                             #arrayAccessExpr
+    | methodCall                                                            #methodCallExpr
+    | NEW creator                                                           #newExpr
+    | '(' typeType ')' expression                                           #typeCastExpr
+    | expression postfix=('++' | '--')                                      #postfixExpr
+    | prefix=('+'|'-'|'++'|'--') expression                                 #prefixExpr
+    | prefix=('~'|'!') expression                                           #prefixExpr
+    | left=expression bop=('*'|'/'|'%') right=expression                    #infixExpr
+    | left=expression bop=('+'|'-') right=expression                        #infixExpr
+    | left=expression shiftOp right=expression    #infixExpr
+    | left=expression bop=('<=' | '>=' | '>' | '<') right=expression        #infixExpr
+    | expression bop=INSTANCEOF typeType                                    #instanceofExpr
+    | left=expression bop=('==' | '!=') right=expression                    #infixExpr
+    | left=expression bop='&' right=expression                              #infixExpr
+    | left=expression bop='^' right=expression                              #infixExpr
+    | left=expression bop='|' right=expression                              #infixExpr
+    | left=expression bop='&&' right=expression                             #infixExpr
+    | left=expression bop='||' right=expression                             #infixExpr
+    | expr=expression bop='?' thenBranch=expression ':' elseBranch=expression            #ternaryExpr
+    | <assoc=right> left=expression
       bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=')
-      expression                                                    #binaryExpr
+      right=expression                                                    #assignmentExpr
     | lambdaExpression                                              #lambdaExpr    // Java8
 
     // Java 8 methodReference
     | expression '::' typeArguments? IDENTIFIER                     #methodReferenceExpr
     | typeType '::' (typeArguments? IDENTIFIER | NEW)               #methodReferenceExpr
     | classType '::' typeArguments? NEW                             #methodReferenceExpr
+    ;
+
+shiftOp
+    : '<' '<'
+    | '>' '>' '>'
+    | '>' '>'
     ;
 
 // Java8
