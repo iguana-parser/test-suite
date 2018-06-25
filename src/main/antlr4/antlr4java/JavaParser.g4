@@ -318,7 +318,7 @@ annotationTypeDeclaration
     ;
 
 annotationTypeBody
-    : '{' (annotationTypeElementDeclaration)* '}'
+    : '{' annotationTypeElementDeclaration* '}'
     ;
 
 annotationTypeElementDeclaration
