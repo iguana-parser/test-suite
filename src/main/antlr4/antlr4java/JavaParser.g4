@@ -73,10 +73,7 @@ variableModifier
     ;
 
 classDeclaration
-    : CLASS IDENTIFIER typeParameters?
-      (EXTENDS typeType)?
-      (IMPLEMENTS typeList)?
-      classBody
+    : CLASS IDENTIFIER typeParameters? (EXTENDS typeType)? (IMPLEMENTS typeList)? classBody
     ;
 
 typeParameters
@@ -552,7 +549,7 @@ innerCreator
     ;
 
 arrayCreatorRest
-    : '[' (']' ('[' ']')* arrayInitializer | expression ']' ('[' expression ']')* ('[' ']')*)
+    : '[' (']' ('[' ']')* arrayInitializer | expression ']' ('[' expression ']')* dimensions)
     ;
 
 classCreatorRest
