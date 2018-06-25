@@ -7,7 +7,9 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -200,6 +202,9 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             interfaceDeclaration.superInterfaceTypes().addAll(createList(ctx.typeList().typeType()));
         }
         interfaceDeclaration.bodyDeclarations().addAll(createList(ctx.interfaceBody().interfaceBodyDeclaration()));
+        if (ctx.typeParameters() != null) {
+            interfaceDeclaration.typeParameters().addAll(createList(ctx.typeParameters().typeParameter()));
+        }
         return interfaceDeclaration;
     }
 
@@ -315,6 +320,20 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         if (ctx.methodBody() != null) {
             methodDeclaration.setBody((Block) ctx.methodBody().accept(this));
         }
+        return methodDeclaration;
+    }
+
+    @Override
+    public MethodDeclaration visitGenericMethodDeclaration(JavaParser.GenericMethodDeclarationContext ctx) {
+        MethodDeclaration methodDeclaration = (MethodDeclaration) ctx.methodDeclaration().accept(this);
+        methodDeclaration.typeParameters().addAll(createList(ctx.typeParameters().typeParameter()));
+        return methodDeclaration;
+    }
+
+    @Override
+    public MethodDeclaration visitGenericConstructorDeclaration(JavaParser.GenericConstructorDeclarationContext ctx) {
+        MethodDeclaration methodDeclaration = (MethodDeclaration) ctx.constructorDeclaration().accept(this);
+        methodDeclaration.typeParameters().addAll(createList(ctx.typeParameters().typeParameter()));
         return methodDeclaration;
     }
 
