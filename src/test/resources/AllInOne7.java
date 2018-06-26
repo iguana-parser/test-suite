@@ -591,7 +591,7 @@ class Dummy {
 
 class Dummy {
     public void dummy() {
-        interface AnotherInterface extends Runnable { // local interface
+        abstract class AnotherInterface extends Runnable { // local abstract class
             void work();
         }
     }

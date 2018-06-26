@@ -40,7 +40,11 @@ packageDeclaration
     ;
 
 importDeclaration
-    : IMPORT STATIC? qualifiedName ('.' '*')? ';'
+    : IMPORT STATIC? qualifiedName onDemand? ';'
+    ;
+
+onDemand
+    : '.' '*'
     ;
 
 typeDeclaration
@@ -368,7 +372,7 @@ localVariableDeclaration
     ;
 
 localTypeDeclaration
-    : classOrInterfaceModifier* (classDeclaration | interfaceDeclaration)
+    : classOrInterfaceModifier* classDeclaration
     | ';'
     ;
 
@@ -549,7 +553,7 @@ innerCreator
     ;
 
 arrayCreatorRest
-    : '[' (']' ('[' ']')* arrayInitializer | expression ']' ('[' expression ']')* dimensions)
+    : '[' (']' dimensions arrayInitializer | expression ']' ('[' expression ']')* dimensions)
     ;
 
 classCreatorRest
