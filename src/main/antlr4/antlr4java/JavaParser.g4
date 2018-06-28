@@ -49,7 +49,7 @@ onDemand
 
 typeDeclaration
     : classOrInterfaceModifier* (classDeclaration | enumDeclaration | interfaceDeclaration | annotationTypeDeclaration) #classOrInterfaceTypeDeclaration
-    | ';'   #semicolonTypeDeclaration
+    | ';'                                                                                                               #semicolonTypeDeclaration
     ;
 
 modifier
@@ -166,7 +166,16 @@ genericConstructorDeclaration
     ;
 
 constructorDeclaration
-    : IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody=block
+    : IDENTIFIER formalParameters (THROWS qualifiedNameList)? constructorBody
+    ;
+
+constructorBody
+    : '{' explicitConstructorInvocation? blockStatement* '}'
+    ;
+
+explicitConstructorInvocation
+    : nonWildcardTypeArguments? THIS arguments ';'                      #constructorInvocation
+    | (primary '.')? nonWildcardTypeArguments? SUPER arguments ';'      #superConstructorInvocation
     ;
 
 fieldDeclaration
@@ -193,7 +202,7 @@ constDeclaration
     ;
 
 constantDeclarator
-    : IDENTIFIER ('[' ']')* '=' variableInitializer
+    : IDENTIFIER dimensions '=' variableInitializer
     ;
 
 // see matching of [] comment in methodDeclaratorRest
@@ -226,7 +235,7 @@ variableDeclarator
     ;
 
 variableDeclaratorId
-    : IDENTIFIER ('[' ']')*
+    : IDENTIFIER dimensions
     ;
 
 variableInitializer
@@ -392,8 +401,8 @@ statement
     | BREAK IDENTIFIER? ';'                                                     #breakStmt
     | CONTINUE IDENTIFIER? ';'                                                  #continueStmt
     | SEMI                                                                      #emptyStmt
-    | statementExpression=expression ';'                                        #expressionStmt
-    | identifierLabel=IDENTIFIER ':' statement                                  #labelStmt
+    | expression ';'                                                            #expressionStmt
+    | IDENTIFIER ':' statement                                                  #labelStmt
     ;
 
 catchClause
@@ -530,8 +539,8 @@ primary
     | SUPER
     | literal
     | IDENTIFIER
+    | qualifiedName '.' THIS
     | typeTypeOrVoid '.' CLASS
-    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)
     ;
 
 classType

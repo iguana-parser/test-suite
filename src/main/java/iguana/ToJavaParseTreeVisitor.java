@@ -2,7 +2,7 @@ package iguana;
 
 import antlr4java.JavaLexer;
 import antlr4java.JavaParser;
-import antlr4java.JavaParserBaseVisitor;
+import antlr4java.JavaParserBaseVisitor;;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -12,7 +12,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
+import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
@@ -99,12 +101,14 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     }
 
     @Override
-    public ASTNode visitElementValue(JavaParser.ElementValueContext ctx) {
-        return ctx.getChild(0).accept(this);
+    public ArrayInitializer visitElementValueArrayInitializer(JavaParser.ElementValueArrayInitializerContext ctx) {
+        ArrayInitializer arrayInitializer = ast.newArrayInitializer();
+        arrayInitializer.expressions().addAll(createList(ctx.elementValue()));
+        return arrayInitializer;
     }
 
     @Override
-    public ASTNode visitElementValuePair(JavaParser.ElementValuePairContext ctx) {
+    public MemberValuePair visitElementValuePair(JavaParser.ElementValuePairContext ctx) {
         MemberValuePair memberValuePair = ast.newMemberValuePair();
         memberValuePair.setName(getIdentifier(ctx.IDENTIFIER()));
         memberValuePair.setValue((Expression) ctx.elementValue().accept(this));
@@ -177,8 +181,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
         if (ctx.getChildCount() > 1 && ctx.getChild(i) instanceof JavaParser.TypeArgumentsContext) {
             ParameterizedType parameterizedType = ast.newParameterizedType(type);
-            parameterizedType.typeArguments().addAll(createList(((JavaParser.TypeArgumentsContext) ctx.getChild(i++)).typeArgument()));
+            JavaParser.TypeArgumentsContext typeArguments = (JavaParser.TypeArgumentsContext) ctx.getChild(i);
+            parameterizedType.typeArguments().addAll(createList(typeArguments.typeArgument()));
             type = parameterizedType;
+            i++;
         }
 
         while (true) {
@@ -190,7 +196,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
                 type = ast.newQualifiedType(type, ast.newSimpleName(ctx.getChild(i).getText()));
                 if (i + 1 < ctx.getChildCount() && ctx.getChild(i + 1) instanceof JavaParser.TypeArgumentsContext) {
                     type = ast.newParameterizedType(type);
-                    ((ParameterizedType) type).typeArguments().add(ctx.getChild(i + 1).accept(this));
+                    JavaParser.TypeArgumentsContext typeArguments = (JavaParser.TypeArgumentsContext) ctx.getChild(i + 1);
+                    if (typeArguments.typeArgument() != null) {
+                        ((ParameterizedType) type).typeArguments().addAll(createList(typeArguments.typeArgument()));
+                    }
                     i++;
                 }
                 i++;
@@ -233,9 +242,12 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
     @Override
     public BodyDeclaration visitInterfaceBodyDeclaration(JavaParser.InterfaceBodyDeclarationContext ctx) {
-        BodyDeclaration bodyDeclaration = (BodyDeclaration) ctx.interfaceMemberDeclaration().accept(this);
-        bodyDeclaration.modifiers().addAll(createList(ctx.modifier()));
-        return bodyDeclaration;
+        if (ctx.interfaceMemberDeclaration() != null) {
+            BodyDeclaration bodyDeclaration = (BodyDeclaration) ctx.interfaceMemberDeclaration().accept(this);
+            bodyDeclaration.modifiers().addAll(createList(ctx.modifier()));
+            return bodyDeclaration;
+        }
+        return null;
     }
 
     @Override
@@ -254,7 +266,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         methodDeclaration.setName(getIdentifier(ctx.IDENTIFIER()));
         methodDeclaration.parameters().addAll(getFormalParameters(ctx.formalParameters()));
         if (ctx.qualifiedNameList() != null) {
-            methodDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()).stream().map(name -> convertNameToType((Name) name)).collect(toList()));
+            methodDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()).stream().map(name -> ast.newSimpleType((Name) name)).collect(toList()));
         }
 
         if (ctx.methodBody() != null) {
@@ -270,7 +282,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         if (ctx.typeList() != null) {
             enumDeclaration.superInterfaceTypes().addAll(createList(ctx.typeList().typeType()));
         }
-        enumDeclaration.enumConstants().addAll(createList(ctx.enumConstants().enumConstant()));
+
+        if (ctx.enumConstants() != null) {
+            enumDeclaration.enumConstants().addAll(createList(ctx.enumConstants().enumConstant()));
+        }
 
         if (ctx.enumBodyDeclarations() != null) {
             enumDeclaration.bodyDeclarations().addAll(createList(ctx.enumBodyDeclarations().classBodyDeclaration()));
@@ -287,7 +302,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         enumConstantDeclaration.modifiers().addAll(createList(ctx.annotation()));
 
         if (ctx.arguments() != null) {
-            enumConstantDeclaration.arguments().addAll(createList(ctx.arguments().expressionList().expression()));
+            enumConstantDeclaration.arguments().addAll(getArguments(ctx.arguments()));
         }
 
         if (ctx.classBody() != null) {
@@ -334,7 +349,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         methodDeclaration.setName(getIdentifier(ctx.IDENTIFIER()));
         methodDeclaration.parameters().addAll(getFormalParameters(ctx.formalParameters()));
         if (ctx.qualifiedNameList() != null) {
-            methodDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()).stream().map(name -> convertNameToType((Name) name)).collect(toList()));
+            methodDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()).stream().map(name -> ast.newSimpleType((Name) name)).collect(toList()));
         }
 
         if (ctx.methodBody() != null) {
@@ -370,13 +385,52 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     public ASTNode visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
         MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
         constructorDeclaration.setConstructor(true);
+        constructorDeclaration.setReturnType2(null);
         constructorDeclaration.parameters().addAll(getFormalParameters(ctx.formalParameters()));
         constructorDeclaration.setName(getIdentifier(ctx.IDENTIFIER()));
         if (ctx.qualifiedNameList() != null) {
-            constructorDeclaration.thrownExceptionTypes().addAll(createList(ctx.qualifiedNameList().qualifiedName()));
+            List<Type> types = createList(ctx.qualifiedNameList().qualifiedName()).stream().map(name -> ast.newSimpleType((Name) name)).collect(toList());
+            constructorDeclaration.thrownExceptionTypes().addAll(types);
         }
-        constructorDeclaration.setBody((Block) ctx.constructorBody.accept(this));
+        constructorDeclaration.setBody((Block) ctx.constructorBody().accept(this));
         return constructorDeclaration;
+    }
+
+    @Override
+    public ASTNode visitConstructorBody(JavaParser.ConstructorBodyContext ctx) {
+        Block block = ast.newBlock();
+        if (ctx.explicitConstructorInvocation() != null) {
+            block.statements().add(ctx.explicitConstructorInvocation().accept(this));
+        }
+        block.statements().addAll(createList(ctx.blockStatement()));
+        return block;
+    }
+
+    @Override
+    public ConstructorInvocation visitConstructorInvocation(JavaParser.ConstructorInvocationContext ctx) {
+        ConstructorInvocation constructorInvocation = ast.newConstructorInvocation();
+        if (ctx.nonWildcardTypeArguments() != null) {
+            constructorInvocation.typeArguments().addAll(createList(ctx.nonWildcardTypeArguments().typeList().typeType()));
+        }
+        if (ctx.arguments() != null) {
+            constructorInvocation.arguments().addAll(getArguments(ctx.arguments()));
+        }
+        return constructorInvocation;
+    }
+
+    @Override
+    public SuperConstructorInvocation visitSuperConstructorInvocation(JavaParser.SuperConstructorInvocationContext ctx) {
+        SuperConstructorInvocation superConstructorInvocation = ast.newSuperConstructorInvocation();
+        if (ctx.primary() != null) {
+            superConstructorInvocation.setExpression((Expression) ctx.primary().accept(this));
+        }
+        if (ctx.nonWildcardTypeArguments() != null) {
+            superConstructorInvocation.typeArguments().addAll(createList(ctx.nonWildcardTypeArguments().typeList().typeType()));
+        }
+        if (ctx.arguments() != null) {
+            superConstructorInvocation.arguments().addAll(getArguments(ctx.arguments()));
+        }
+        return superConstructorInvocation;
     }
 
     @Override
@@ -404,7 +458,8 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
         singleVariableDeclaration.setType((Type) ctx.typeType().accept(this));
         singleVariableDeclaration.modifiers().addAll(createList(ctx.variableModifier()));
-        singleVariableDeclaration.setName(ast.newSimpleName(ctx.variableDeclaratorId().IDENTIFIER().getText()));
+        singleVariableDeclaration.extraDimensions().addAll(getDimensions(ctx.variableDeclaratorId().dimensions()));
+        singleVariableDeclaration.setName(getIdentifier(ctx.variableDeclaratorId().IDENTIFIER()));
         return singleVariableDeclaration;
     }
 
@@ -434,20 +489,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     }
 
     @Override
-    public ASTNode visitVariableInitializer(JavaParser.VariableInitializerContext ctx) {
-        return ctx.getChild(0).accept(this);
-    }
-
-    @Override
     public ArrayInitializer visitArrayInitializer(JavaParser.ArrayInitializerContext ctx) {
         ArrayInitializer arrayInitializer = ast.newArrayInitializer();
         arrayInitializer.expressions().addAll(createList(ctx.variableInitializer()));
         return arrayInitializer;
-    }
-
-    @Override
-    public ASTNode visitPrimaryExpr(JavaParser.PrimaryExprContext ctx) {
-        return ctx.primary().accept(this);
     }
 
     @Override
@@ -457,7 +502,11 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             parenthesizedExpression.setExpression((Expression) ctx.expression().accept(this));
             return parenthesizedExpression;
         } else if (ctx.THIS() != null) {
-            return ast.newThisExpression();
+            ThisExpression thisExpression = ast.newThisExpression();
+            if (ctx.qualifiedName() != null) {
+                thisExpression.setQualifier((Name) ctx.qualifiedName().accept(this));
+            }
+            return thisExpression;
         } else if (ctx.SUPER() != null) {
             return ast.newSuperFieldAccess();
         } else if (ctx.literal() != null) {
@@ -507,12 +556,13 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         if (ctx.arrayCreatorRest() != null) { // array creation
             ArrayCreation arrayCreation = ast.newArrayCreation();
             if (ctx.arrayCreatorRest().expression() != null) {
-                int dimensions = getDimensions(ctx.arrayCreatorRest());
+                List<ASTNode> expressions = createList(ctx.arrayCreatorRest().expression());
+                int dimensions = getDimensionsSize(ctx.arrayCreatorRest().dimensions()) + expressions.size();
                 arrayCreation.setType(ast.newArrayType((Type) ctx.createdName().accept(this), dimensions));
-                arrayCreation.dimensions().addAll(createList(ctx.arrayCreatorRest().expression()));
+                arrayCreation.dimensions().addAll(expressions);
             }
             if (ctx.arrayCreatorRest().arrayInitializer() != null) {
-                int dimensions = getDimensions(ctx.arrayCreatorRest()) + 1;
+                int dimensions = getDimensionsSize(ctx.arrayCreatorRest().dimensions()) + 1;
                 arrayCreation.setType(ast.newArrayType((Type) ctx.createdName().accept(this), dimensions));
                 arrayCreation.setInitializer((ArrayInitializer) ctx.arrayCreatorRest().arrayInitializer().accept(this));
             }
@@ -538,15 +588,17 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         if (ctx.primitiveType() != null) {
             return (PrimitiveType) ctx.primitiveType().accept(this);
         }
-        // Unifiy this one and ClassOrInterfaceType
+        // Unify this one and ClassOrInterfaceType
         else {
             int i = 0;
             Type type = ast.newSimpleType(ast.newSimpleName(ctx.IDENTIFIER().get(i++).getText()));
 
             if (ctx.getChildCount() > 1 && ctx.getChild(i) instanceof JavaParser.TypeArgumentsOrDiamondContext) {
-
                 ParameterizedType parameterizedType = ast.newParameterizedType(type);
-                parameterizedType.typeArguments().addAll(createList(((JavaParser.TypeArgumentsOrDiamondContext) ctx.getChild(i++)).typeArguments().typeArgument()));
+                JavaParser.TypeArgumentsOrDiamondContext typeArgumentsOrDiamondContext = (JavaParser.TypeArgumentsOrDiamondContext) ctx.getChild(i);
+                if (typeArgumentsOrDiamondContext.typeArguments() != null) {
+                    parameterizedType.typeArguments().addAll(createList(typeArgumentsOrDiamondContext.typeArguments().typeArgument()));
+                }
                 type = parameterizedType;
             }
 
@@ -559,7 +611,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
                     type = ast.newQualifiedType(type, ast.newSimpleName(ctx.getChild(i).getText()));
                     if (i + 1 < ctx.getChildCount() && ctx.getChild(i + 1) instanceof JavaParser.TypeArgumentsOrDiamondContext) {
                         type = ast.newParameterizedType(type);
-                        ((ParameterizedType) type).typeArguments().add(ctx.getChild(i + 1).accept(this));
+                        JavaParser.TypeArgumentsOrDiamondContext typeArgumentsOrDiamondContext = (JavaParser.TypeArgumentsOrDiamondContext) ctx.getChild(i + 1);
+                        if (typeArgumentsOrDiamondContext.typeArguments() != null) {
+                            ((ParameterizedType) type).typeArguments().addAll(createList(typeArgumentsOrDiamondContext.typeArguments().typeArgument()));
+                        }
                         i++;
                     }
                     i++;
@@ -604,13 +659,24 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     @Override
     public ASTNode visitInfixExpr(JavaParser.InfixExprContext ctx) {
         InfixExpression infixExpression = ast.newInfixExpression();
-        infixExpression.setLeftOperand((Expression) ctx.left.accept(this));
-        infixExpression.setRightOperand((Expression) ctx.right.accept(this));
+        Expression leftOperand = (Expression) ctx.left.accept(this);
+        Expression rightOperand = (Expression) ctx.right.accept(this);
+        InfixExpression.Operator operator;
         if (ctx.bop != null) {
-            infixExpression.setOperator(InfixExpression.Operator.toOperator(ctx.bop.getText()));
+            operator = InfixExpression.Operator.toOperator(ctx.bop.getText());
         } else { // shiftOp
-            infixExpression.setOperator(InfixExpression.Operator.toOperator(ctx.shiftOp().getText()));
+            operator = InfixExpression.Operator.toOperator(ctx.shiftOp().getText());
         }
+
+        // See InfixExpression.extendedOperands
+        if (leftOperand instanceof InfixExpression && ((InfixExpression) leftOperand).getOperator().equals(operator)) {
+            ((InfixExpression) leftOperand).extendedOperands().add(rightOperand);
+            return leftOperand;
+        }
+
+        infixExpression.setLeftOperand(leftOperand);
+        infixExpression.setRightOperand(rightOperand);
+        infixExpression.setOperator(operator);
 
         return infixExpression;
     }
@@ -653,8 +719,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             return ast.newNullLiteral();
         } else if (ctx.STRING_LITERAL() != null) {
             StringLiteral stringLiteral = ast.newStringLiteral();
-            String text = ctx.STRING_LITERAL().getText();
-            stringLiteral.setLiteralValue(text.substring(1, text.length() - 1));
+            stringLiteral.setEscapedValue(ctx.STRING_LITERAL().getText());
             return stringLiteral;
         } else if (ctx.integerLiteral() != null) {
             return ast.newNumberLiteral(ctx.integerLiteral().getText());
@@ -719,7 +784,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
     private List<SingleVariableDeclaration> getFormalParameters(JavaParser.FormalParametersContext ctx) {
         if (ctx.formalParameterList() == null) {
-            return Collections.emptyList();
+            return emptyList();
         }
 
         final List<SingleVariableDeclaration> list = new ArrayList<>();
@@ -765,9 +830,13 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     public ASTNode visitIfStmt(JavaParser.IfStmtContext ctx) {
         IfStatement ifStatement = ast.newIfStatement();
         ifStatement.setExpression((Expression) ctx.parExpression().expression().accept(this));
-        ifStatement.setThenStatement((Statement) ctx.thenBranch.accept(this));
+        if (ctx.thenBranch != null) {
+            Statement thenBranch = (Statement) ctx.thenBranch.accept(this);
+            if (thenBranch != null) ifStatement.setThenStatement(thenBranch);
+        }
         if (ctx.elseBranch != null) {
-            ifStatement.setElseStatement((Statement) ctx.elseBranch.accept(this));
+            Statement elseBranch = (Statement) ctx.elseBranch.accept(this);
+            if (elseBranch != null) ifStatement.setElseStatement(elseBranch);
         }
         return ifStatement;
     }
@@ -814,7 +883,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             if (ctx.forControl().forUpdate != null) {
                 forStatement.updaters().addAll(createList(ctx.forControl().forUpdate.expression()));
             }
-            forStatement.setBody((Statement) ctx.statement().accept(this));
+
+            Statement statement = (Statement) ctx.statement().accept(this);
+            if (statement != null) forStatement.setBody(statement);
+
             return forStatement;
         }
     }
@@ -823,7 +895,10 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
     public WhileStatement visitWhileStmt(JavaParser.WhileStmtContext ctx) {
         WhileStatement whileStatement = ast.newWhileStatement();
         whileStatement.setExpression((Expression) ctx.parExpression().expression().accept(this));
-        whileStatement.setBody((Statement) ctx.statement().accept(this));
+        Statement body = (Statement) ctx.statement().accept(this);
+        if (body != null) { // Empty while body
+            whileStatement.setBody((Statement) ctx.statement().accept(this));
+        }
         return whileStatement;
     }
 
@@ -888,8 +963,12 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
     @Override
     public Type visitCatchType(JavaParser.CatchTypeContext ctx) {
+        List<Type> types = createList(ctx.qualifiedName()).stream().map(name -> ast.newSimpleType((Name) name)).collect(toList());
+        if (types.size() == 1) {
+            return types.get(0);
+        }
         UnionType unionType = ast.newUnionType();
-        unionType.types().addAll(createList(ctx.qualifiedName()).stream().map(name -> convertNameToType((Name) name)).collect(toList()));
+        unionType.types().addAll(types);
         return unionType;
     }
 
@@ -959,7 +1038,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
     @Override
     public ASTNode visitExpressionStmt(JavaParser.ExpressionStmtContext ctx) {
-        return ast.newExpressionStatement((Expression) ctx.statementExpression.accept(this));
+        return ast.newExpressionStatement((Expression) ctx.expression().accept(this));
     }
 
     @Override
@@ -977,22 +1056,40 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             }
         } else if (ctx.THIS() != null) {
             ThisExpression thisExpression = ast.newThisExpression();
-            thisExpression.setQualifier((Name) ctx.expression().accept(this));
+            ASTNode qualifier = ctx.expression().accept(this);
+            if (qualifier instanceof FieldAccess) {
+                List<SimpleName> names = new ArrayList<>();
+                toQualifiedName((FieldAccess) qualifier, names);
+                QualifiedName qualifiedName = ast.newQualifiedName(names.get(0), names.get(1));
+                for (int i = 2; i < names.size(); i++) {
+                    qualifiedName = ast.newQualifiedName(qualifiedName, names.get(i));
+                }
+                thisExpression.setQualifier(qualifiedName);
+            } else {
+                thisExpression.setQualifier((Name) ctx.expression().accept(this));
+            }
             return thisExpression;
         } else if (ctx.methodCall() != null) {
-            MethodInvocation methodInvocation = (MethodInvocation) ctx.methodCall().accept(this);
-            methodInvocation.setExpression((Expression) ctx.expression().accept(this));
-            return methodInvocation;
-        } else if (ctx.SUPER() != null) {
-            if (ctx.superSuffix().IDENTIFIER() != null) {
-                SuperFieldAccess superFieldAccess = ast.newSuperFieldAccess();
-                superFieldAccess.setQualifier((Name) ctx.expression().accept(this));
-                superFieldAccess.setName(ast.newSimpleName(ctx.superSuffix().IDENTIFIER().getText()));
-            } else {
+            Expression expression = (Expression) ctx.expression().accept(this);
+            if (expression instanceof SuperFieldAccess) {
                 SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
-                superMethodInvocation.arguments().addAll(getArguments(ctx.superSuffix().arguments()));
+                superMethodInvocation.setName(getIdentifier(ctx.methodCall().IDENTIFIER()));
+                if (ctx.methodCall().expressionList() != null) {
+                    superMethodInvocation.arguments().addAll(createList(ctx.methodCall().expressionList().expression()));
+                }
                 return superMethodInvocation;
             }
+            MethodInvocation methodInvocation = (MethodInvocation) ctx.methodCall().accept(this);
+            methodInvocation.setExpression(expression);
+            return methodInvocation;
+        } else if (ctx.SUPER() != null) {
+            SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
+            superMethodInvocation.setQualifier((Name) ctx.expression().accept(this));
+            superMethodInvocation.arguments().addAll(getArguments(ctx.superSuffix().arguments()));
+            if (ctx.superSuffix().IDENTIFIER() != null) {
+                superMethodInvocation.setName(ast.newSimpleName(ctx.superSuffix().IDENTIFIER().getText()));
+            }
+            return superMethodInvocation;
         } else if (ctx.NEW() != null) {
             ClassInstanceCreation classInstanceCreation = ast.newClassInstanceCreation();
             if (ctx.innerCreator().classCreatorRest().classBody() != null) {
@@ -1009,6 +1106,24 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             }
 
             return classInstanceCreation;
+        }
+        else if (ctx.explicitGenericInvocation() != null) {
+            JavaParser.ExplicitGenericInvocationSuffixContext suffixContext = ctx.explicitGenericInvocation().explicitGenericInvocationSuffix();
+            if (suffixContext.SUPER() != null) {
+                SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
+                superMethodInvocation.typeArguments().addAll(createList(ctx.explicitGenericInvocation().nonWildcardTypeArguments().typeList().typeType()));
+                if (suffixContext.IDENTIFIER() != null) {
+                    superMethodInvocation.setName(getIdentifier(suffixContext.IDENTIFIER()));
+                }
+                superMethodInvocation.arguments().addAll(getArguments(suffixContext.arguments()));
+                return superMethodInvocation;
+            } else {
+                MethodInvocation methodInvocation = ast.newMethodInvocation();
+                methodInvocation.typeArguments().addAll(createList(ctx.explicitGenericInvocation().nonWildcardTypeArguments().typeList().typeType()));
+                methodInvocation.setName(getIdentifier(suffixContext.IDENTIFIER()));
+                methodInvocation.arguments().addAll(getArguments(suffixContext.arguments()));
+                return methodInvocation;
+            }
         }
 
         throw new RuntimeException();
@@ -1034,11 +1149,16 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         return node instanceof TerminalNode && ((TerminalNode) node).getSymbol().getType() == JavaLexer.IDENTIFIER;
     }
 
-    private int getDimensions(JavaParser.ArrayCreatorRestContext ctx) {
-        if (ctx.dimensions() == null || ctx.dimensions().children == null) {
+    private int getDimensionsSize(JavaParser.DimensionsContext ctx) {
+        if (ctx == null || ctx.children == null) {
             return 0;
         }
-        return ctx.dimensions().children.size();
+        return ctx.children.size() / 2;
+    }
+
+    private List<Dimension> getDimensions(JavaParser.DimensionsContext ctx) {
+        if (ctx == null) return emptyList();
+        return IntStream.range(0, getDimensionsSize(ctx)).mapToObj(i -> ast.newDimension()).collect(toList());
     }
 
     private SimpleName getIdentifier(TerminalNode node) {
@@ -1049,8 +1169,9 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         List<VariableDeclarationFragment> fragments = new ArrayList<>();
         for (JavaParser.VariableDeclaratorContext variableDeclaratorContext : ctx.variableDeclarator()) {
             VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-            fragment.setName(ast.newSimpleName(variableDeclaratorContext.variableDeclaratorId().IDENTIFIER().getText()));
+            fragment.setName(getIdentifier(variableDeclaratorContext.variableDeclaratorId().IDENTIFIER()));
             fragment.setInitializer((Expression) variableDeclaratorContext.accept(this));
+            fragment.extraDimensions().addAll(getDimensions(variableDeclaratorContext.variableDeclaratorId().dimensions()));
             fragments.add(fragment);
         }
         return fragments;
@@ -1062,6 +1183,7 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
             fragment.setName(ast.newSimpleName(constantDeclaratorContext.IDENTIFIER().getText()));
             fragment.setInitializer((Expression) constantDeclaratorContext.accept(this));
+            fragment.extraDimensions().addAll(getDimensions(constantDeclaratorContext.dimensions()));
             fragments.add(fragment);
         }
         return fragments;
@@ -1069,9 +1191,19 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
 
     private List<Expression> getArguments(JavaParser.ArgumentsContext arguments) {
         if (arguments.expressionList() == null) {
-            return Collections.emptyList();
+            return emptyList();
         }
         return createList(arguments.expressionList().expression(), Expression.class);
+    }
+
+    private void toQualifiedName(FieldAccess fieldAccess, List<SimpleName> names) {
+        Expression expression = fieldAccess.getExpression();
+        if (expression instanceof SimpleName) {
+            names.add(ast.newSimpleName(((SimpleName) expression).getIdentifier()));
+        } else {
+            toQualifiedName((FieldAccess) expression, names);
+        }
+        names.add(ast.newSimpleName(fieldAccess.getName().getIdentifier()));
     }
 
     private List<Statement> getStatements(JavaParser.SwitchBlockStatementGroupContext ctx) {
@@ -1080,14 +1212,5 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
         List<Statement> result = new ArrayList<>(switchLabels);
         result.addAll(blockStatements);
         return result;
-    }
-
-    private Type convertNameToType(Name name) {
-        if (name.isSimpleName()) {
-            return ast.newSimpleType(name);
-        } else {
-            QualifiedName qualifiedName = (QualifiedName) name;
-            return ast.newQualifiedType(convertNameToType(qualifiedName.getQualifier()), qualifiedName.getName());
-        }
     }
 }

@@ -8,10 +8,10 @@ It may occupy more than one line. */
 
 /**
  * This is a documentation comment.
- * 
+ *
  * @author John Doe
  */
- 
+
 package myapplication.mylibrary;
 
 import java.util.Random; // Single type declaration
@@ -426,9 +426,11 @@ class Foo {
 
     Foo() { // Constructor with no arguments
         // Initialization
+        this();
     }
 
     Foo(String str) { // Constructor with one argument
+        super(str);
         this.str = str;
     }
 }
