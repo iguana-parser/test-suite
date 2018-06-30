@@ -1063,13 +1063,17 @@ public class ToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> {
             return thisExpression;
         } else if (ctx.methodCall() != null) {
             Expression expression = (Expression) ctx.expression().accept(this);
+            // This is a hack: when parsing primary, if it is 'super' it is not clear if it's a super field access
+            // or super method invocation. We use this check here to distinguish between them
             if (expression instanceof SuperFieldAccess) {
-                SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
-                superMethodInvocation.setName(getIdentifier(ctx.methodCall().IDENTIFIER()));
-                if (ctx.methodCall().expressionList() != null) {
-                    superMethodInvocation.arguments().addAll(createList(ctx.methodCall().expressionList().expression()));
+                if (((SuperFieldAccess) expression).getName().toString().equals("MISSING")) {
+                    SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
+                    superMethodInvocation.setName(getIdentifier(ctx.methodCall().IDENTIFIER()));
+                    if (ctx.methodCall().expressionList() != null) {
+                        superMethodInvocation.arguments().addAll(createList(ctx.methodCall().expressionList().expression()));
+                    }
+                    return superMethodInvocation;
                 }
-                return superMethodInvocation;
             }
             MethodInvocation methodInvocation = (MethodInvocation) ctx.methodCall().accept(this);
             methodInvocation.setExpression(expression);

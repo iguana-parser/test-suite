@@ -22,30 +22,13 @@ public class TestASTs {
 
     private AntlrJavaParser parser = new AntlrJavaParser();
     private Map<String, String> options = new HashMap<>();
-    private Set<String> exclude = new HashSet<>();
 
     @BeforeEach
     void init() {
         options.put(COMPILER_SOURCE, "1.7");
-        exclude.add("/Users/Ali/workspace-thesis/jdk7u-jdk/test/demo/jvmti/DemoRun.java");
     }
 
     @Test
-    public void testAllInOne7() throws Exception {
-        URI uri = TestASTs.class.getClassLoader().getResource("Test.java").toURI();
-        String input = getFileContent(Paths.get(uri));
-        JavaParser.CompilationUnitContext compilationUnit = parser.parse(input);
-        CompilationUnit antlrResult = (CompilationUnit) compilationUnit.accept(new ToJavaParseTreeVisitor());
-
-        ASTParser jdkParser = ASTParser.newParser(AST.JLS10);
-        jdkParser.setCompilerOptions(options);
-        jdkParser.setSource(input.toCharArray());
-        jdkParser.setKind(ASTParser.K_COMPILATION_UNIT);
-        CompilationUnit jdtResult = (CompilationUnit) jdkParser.createAST(null);
-
-        assertTrue(antlrResult.subtreeMatch(new CustomASTMatcher(), jdtResult));
-    }
-
     public void testJdk7() throws Exception {
         List<Path> javaFiles = Files.walk(Paths.get("/Users/Ali/workspace-thesis/jdk7u-jdk"))
                 .filter(Files::isRegularFile)
@@ -64,9 +47,7 @@ public class TestASTs {
             jdkParser.setKind(ASTParser.K_COMPILATION_UNIT);
             CompilationUnit jdtResult = (CompilationUnit) jdkParser.createAST(null);
 
-            if (!exclude.contains(path.toString())) {
-                assertTrue(antlrResult.subtreeMatch(new CustomASTMatcher(), jdtResult));
-            }
+            assertTrue(antlrResult.subtreeMatch(new CustomASTMatcher(), jdtResult));
         }
     }
 
