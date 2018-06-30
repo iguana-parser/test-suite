@@ -144,7 +144,7 @@ memberDeclaration
    for invalid return type after parsing.
  */
 methodDeclaration
-    : typeTypeOrVoid IDENTIFIER formalParameters ('[' ']')* (THROWS qualifiedNameList)? methodBody
+    : typeTypeOrVoid IDENTIFIER formalParameters dimensions (THROWS qualifiedNameList)? methodBody
     ;
 
 methodBody
@@ -305,7 +305,11 @@ floatLiteral
 // ANNOTATIONS
 
 annotation
-    : '@' qualifiedName ('(' ( elementValuePairs | elementValue )? ')')?
+    : '@' qualifiedName values?
+    ;
+
+values
+    : '(' ( elementValuePairs | elementValue )? ')'
     ;
 
 elementValuePairs
@@ -497,7 +501,7 @@ expression
     | left=expression bop='|' right=expression                              #infixExpr
     | left=expression bop='&&' right=expression                             #infixExpr
     | left=expression bop='||' right=expression                             #infixExpr
-    | expr=expression bop='?' thenBranch=expression ':' elseBranch=expression            #ternaryExpr
+    | <assoc=right> expr=expression bop='?' thenBranch=expression ':' elseBranch=expression            #ternaryExpr
     | <assoc=right> left=expression
       bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=')
       right=expression                                                    #assignmentExpr
