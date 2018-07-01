@@ -19,11 +19,17 @@ import static org.eclipse.jdt.core.JavaCore.COMPILER_SOURCE;
 
 public class Utils {
 
+    private static final String JDK7_DIR = "JDK7_DIR";
+
+    public static String getJDK7SourceLocation() {
+        return System.getenv(JDK7_DIR);
+    }
+
     public static String getFileContent(Path path) throws IOException {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
     }
 
-    static void writeContentToFile(String content, String path) throws FileNotFoundException {
+    public static void writeContentToFile(String content, String path) throws FileNotFoundException {
         try (PrintWriter out = new PrintWriter(path)) {
             out.write(content);
         }

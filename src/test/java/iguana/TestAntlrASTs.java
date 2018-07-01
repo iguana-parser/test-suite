@@ -16,10 +16,9 @@ import static org.junit.Assert.assertTrue;
 
 class TestAntlrASTs {
 
-
     @TestFactory
     Collection<DynamicTest> testAntlr() throws Exception {
-        List<Path> javaFiles = getFiles("/Users/Ali/workspace-thesis/jdk7u-jdk", ".java");
+        List<Path> javaFiles = getFiles(getJDK7SourceLocation(), ".java");
 
         return javaFiles.stream().map(path -> DynamicTest.dynamicTest(path.toString(), () -> {
             String input = getFileContent(path);

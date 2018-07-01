@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import static iguana.Utils.getFiles;
+import static iguana.Utils.getJDK7SourceLocation;
 import static java.util.stream.Collectors.toList;
 
 public class ParserBenchmark {
@@ -21,7 +22,7 @@ public class ParserBenchmark {
             throw new RuntimeException("Benchmark name is empty, should be: Antlr, EclipseJDT or Iguana");
         }
 
-        String[] params = getFiles("/Users/Ali/workspace-thesis/jdk7u-jdk", ".java")
+        String[] params = getFiles(getJDK7SourceLocation(), ".java")
                 .stream()
                 .map(Path::toString)
                 .limit(10)
