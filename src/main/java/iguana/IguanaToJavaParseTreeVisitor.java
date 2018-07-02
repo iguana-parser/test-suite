@@ -1,10 +1,12 @@
 package iguana;
 
 
+import antlr4java.JavaParser;
 import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.*;
 import org.iguana.parsetree.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -44,14 +46,17 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             }
 
             case "NormalClassDeclaration": {
-                TypeDeclaration typeDeclaration = ast.newTypeDeclaration();
-                typeDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
-                return typeDeclaration;
+                TypeDeclaration classDeclaration = ast.newTypeDeclaration();
+                classDeclaration.modifiers().addAll(createList(node.getChildWithName("ClassModifier*").children()));
+                classDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                classDeclaration.bodyDeclarations().addAll(createList(node.getChildWithName("ClassBody").childAt(1).children()));
+                return classDeclaration;
             }
 
             case "EnumDeclaration": {
                 EnumDeclaration enumDeclaration = ast.newEnumDeclaration();
                 enumDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                enumDeclaration.modifiers().addAll(createList(node.getChildWithName("ClassModifier*").children()));
                 return enumDeclaration;
             }
 
@@ -59,13 +64,43 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 TypeDeclaration interfaceDeclaration = ast.newTypeDeclaration();
                 interfaceDeclaration.setInterface(true);
                 interfaceDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                interfaceDeclaration.modifiers().addAll(createList(node.getChildWithName("InterfaceModifier*").children()));
                 return interfaceDeclaration;
             }
 
             case "AnnotationTypeDeclaration": {
                 AnnotationTypeDeclaration annotationTypeDeclaration = ast.newAnnotationTypeDeclaration();
                 annotationTypeDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                annotationTypeDeclaration.modifiers().addAll(createList(node.getChildWithName("InterfaceModifier*").children()));
                 return annotationTypeDeclaration;
+            }
+
+            case "FieldDeclaration": {
+                List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(node.getChildWithName("VariableDeclarators"));
+                FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
+                return fieldDeclaration;
+            }
+
+            case "MethodDeclaration": {
+                MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
+                return methodDeclaration;
+            }
+
+            case "ConstructorDeclaration": {
+                MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
+                constructorDeclaration.setConstructor(true);
+                return constructorDeclaration;
+            }
+
+            case "InstanceInitializer": {
+                Initializer initializer = ast.newInitializer();
+                return initializer;
+            }
+
+            case "StaticInitializer": {
+                Initializer initializer = ast.newInitializer();
+                initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
+                return initializer;
             }
 
             case "QualifiedIdentifier": {
@@ -85,6 +120,18 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 }
 
                 return qualifier;
+            }
+
+            case "FieldModifier":
+            case "InterfaceModifier":
+            case "ConstantModifier":
+            case "AbstractMethodModifier":
+            case "ClassModifier": {
+                if (node.hasChild("Annotation")) {
+                    return null;
+                } else {
+                    return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
+                }
             }
 
             case "Identifier": {
@@ -132,5 +179,15 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return ast.newSimpleName(node.getText(input));
     }
 
+    private List<VariableDeclarationFragment> getVariableDeclarationFragments(ParseTreeNode node) {
+        List<ParseTreeNode> variableDeclarators = node.childAt(0).getChildrenWithName("VariableDeclarator");
+        List<VariableDeclarationFragment> fragments = new ArrayList<>();
+        for (ParseTreeNode variableDeclarator : variableDeclarators) {
+            VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+            fragment.setName(getIdentifier(variableDeclarator.getChildWithName("VariableDeclaratorId").getChildWithName("Identifier")));
+            fragments.add(fragment);
+        }
+        return fragments;
+    }
 
 }

@@ -656,7 +656,7 @@ class Mapper {
     }
 }
 
-interface Expandable<T extends Number> {
+public interface Expandable<T extends Number> {
     void addItem(T item);
 }
 
