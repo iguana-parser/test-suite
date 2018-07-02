@@ -67,7 +67,6 @@ class TestIguanaASTs {
         })).collect(toList());
     }
 
-
     @Test
     void test() throws Exception {
         String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
