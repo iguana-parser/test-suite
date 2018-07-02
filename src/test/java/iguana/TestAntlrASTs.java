@@ -24,7 +24,7 @@ class TestAntlrASTs {
             String input = getFileContent(path);
             AntlrJavaParser parser = new AntlrJavaParser();
             JavaParser.CompilationUnitContext compilationUnit = parser.parse(input);
-            CompilationUnit antlrResult = (CompilationUnit) compilationUnit.accept(new ToJavaParseTreeVisitor());
+            CompilationUnit antlrResult = (CompilationUnit) compilationUnit.accept(new AntlrToJavaParseTreeVisitor());
 
             ASTParser astParser = newASTParser(input);
             CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);

@@ -1,9 +1,11 @@
 package iguana;
 
 import iguana.utils.input.Input;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.iguana.grammar.Grammar;
 import org.iguana.grammar.GrammarGraph;
 import org.iguana.grammar.symbol.Nonterminal;
+import org.iguana.grammar.symbol.Symbol;
 import org.iguana.grammar.transformation.DesugarPrecedenceAndAssociativity;
 import org.iguana.grammar.transformation.DesugarStartSymbol;
 import org.iguana.grammar.transformation.EBNFToBNF;
@@ -11,7 +13,11 @@ import org.iguana.grammar.transformation.LayoutWeaver;
 import org.iguana.parser.Iguana;
 import org.iguana.parser.ParseResult;
 import org.iguana.parser.ParserRuntime;
+import org.iguana.parsetree.DefaultParseTreeBuilder;
+import org.iguana.parsetree.ParseTreeNode;
+import org.iguana.parsetree.SPPFToParseTree;
 import org.iguana.sppf.NonPackedNode;
+import org.iguana.sppf.NonterminalNode;
 import org.iguana.util.Configuration;
 import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,12 +28,11 @@ import org.junit.jupiter.api.TestFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static iguana.Utils.*;
 import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.assertTrue;
 
 class TestIguanaASTs {
 
@@ -52,13 +57,13 @@ class TestIguanaASTs {
         grammarGraph = GrammarGraph.from(grammar);
     }
 
-    @TestFactory
+//    @TestFactory
     Collection<DynamicTest> testIguana() throws Exception {
         List<Path> javaFiles = getFiles(getJDK7SourceLocation(), ".java");
 
         return javaFiles.stream().map(path -> DynamicTest.dynamicTest(path.toString(), () -> {
             ParseResult<NonPackedNode> result = Iguana.run(Input.fromString(getFileContent(path)), new ParserRuntime(Configuration.load()), grammarGraph, start, Collections.emptyMap(), true);
-            Assert.assertTrue(result.isParseSuccess());
+            assertTrue(result.isParseSuccess());
         })).collect(toList());
     }
 
@@ -68,10 +73,13 @@ class TestIguanaASTs {
         String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
         Input input = Input.fromString(inputContent);
         ParseResult<NonPackedNode> result = Iguana.parse(input, grammar);
-        if (result.isParseError()) {
-            System.out.println(input.getLineNumber(result.asParseError().getInputIndex()) + ":" + input.getColumnNumber(result.asParseError().getInputIndex()));
-        }
-        System.out.println(result);
+        assertTrue(result.isParseSuccess());
+
+        Set<Symbol> ignoreSet = new HashSet<>();
+        ignoreSet.add(grammar.getLayout());
+        ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
+        ASTNode astNode = parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+        System.out.println(astNode);
     }
 
 }
