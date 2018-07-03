@@ -76,7 +76,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                     enumDeclaration.superInterfaceTypes().addAll(getTypeList(getOption(node.childAt(3)).get(1)));
                 }
 
-                List<BodyDeclaration> enumConstants = createList(getListIgnoreSeparators(node.getChildWithName("EnumBody").childAt(1)), BodyDeclaration.class);
+                List<BodyDeclaration> enumConstants = createList(node.getChildWithName("EnumBody").childAt(1).getChildrenWithName("EnumConstant"), BodyDeclaration.class);
                 enumDeclaration.enumConstants().addAll(enumConstants);
 
                 if (isOptionNotEmpty(node.getChildWithName("EnumBody").childAt(3))) {
@@ -123,8 +123,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return annotationTypeDeclaration;
             }
 
+            // FieldModifier* Type {VariableDeclarator ","}+ ";"
             case "FieldDeclaration": {
-                List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(node.getChildWithName("VariableDeclarators"));
+                List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(node.childAt(2));
                 FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
                 return fieldDeclaration;
             }
@@ -140,14 +141,11 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return constructorDeclaration;
             }
 
-            case "InstanceInitializer": {
+            case "Initializer": {
                 Initializer initializer = ast.newInitializer();
-                return initializer;
-            }
-
-            case "StaticInitializer": {
-                Initializer initializer = ast.newInitializer();
-                initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
+                if (!isOptionNotEmpty(node.childAt(0))) {
+                    initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
+                }
                 return initializer;
             }
 
@@ -170,23 +168,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return qualifier;
             }
 
-            case "FieldModifier":
-            case "InterfaceModifier":
-            case "ConstantModifier":
-            case "AbstractMethodModifier":
-            case "ClassModifier": {
-                if (node.hasChild("Annotation")) {
-                    return null;
-                } else {
-                    return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
-                }
-            }
-
-            /*
-             * Type
-             *    : BasicType ("[" "]")*
-             *    | ReferenceType ("[" "]")*
-             */
             case "Type": {
                 Type type = (Type) node.childAt(0).accept(this);
                 int dimensions = getDimensions(node.childAt(1));
@@ -220,7 +201,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
 
                 return type;
             }
-
             case "TypeArgument": {
                 switch (node.getGrammarDefinition().getLabel()) {
                     case "simpleTypeArgument": {
@@ -240,6 +220,27 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                     }
                 }
             }
+
+            case "VariableModifier":
+            case "FieldModifier":
+            case "MethodModifier":
+            case "InterfaceModifier":
+            case "ConstantModifier":
+            case "AbstractMethodModifier":
+            case "ConstructorModifier":
+            case "ClassModifier": {
+                if (node.hasChild("Annotation")) {
+                    return null;
+                } else {
+                    return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
+                }
+            }
+
+            /*
+             * Type
+             *    : BasicType ("[" "]")*
+             *    | ReferenceType ("[" "]")*
+             */
 
             case "ArrayType": {
                 return null;
@@ -295,7 +296,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     }
 
     public Name getQualifiedName(ParseTreeNode node) {
-        List<SimpleName> identifiers = createList(getListIgnoreSeparators(node), SimpleName.class);
+        List<SimpleName> identifiers = createList(node.getChildrenWithName("Identifier"), SimpleName.class);
 
         SimpleName simpleName = identifiers.get(0);
 
@@ -316,7 +317,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     }
 
     private List<VariableDeclarationFragment> getVariableDeclarationFragments(ParseTreeNode node) {
-        List<ParseTreeNode> variableDeclarators = node.childAt(0).getChildrenWithName("VariableDeclarator");
+        List<ParseTreeNode> variableDeclarators = node.getChildrenWithName("VariableDeclarator");
         List<VariableDeclarationFragment> fragments = new ArrayList<>();
         for (ParseTreeNode variableDeclarator : variableDeclarators) {
             VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
@@ -331,7 +332,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     }
 
     private List<Type> getTypeList(ParseTreeNode node) {
-        return createList(getListIgnoreSeparators(node.childAt(0)), Type.class);
+        return createList(node.childAt(0).getChildrenWithName("Type"), Type.class);
     }
 
     private List<ParseTreeNode> getOption(ParseTreeNode node) {
@@ -345,15 +346,4 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     private boolean isOptionNotEmpty(ParseTreeNode node) {
         return node.children().size() > 0;
     }
-
-    private List<ParseTreeNode> getListIgnoreSeparators(ParseTreeNode node) {
-        List<ParseTreeNode> result = new ArrayList<>(node.children().size());
-        int i = 0;
-        while (i < node.children().size()) {
-            result.add(node.childAt(i));
-            i++;
-        }
-        return result;
-    }
-
 }
