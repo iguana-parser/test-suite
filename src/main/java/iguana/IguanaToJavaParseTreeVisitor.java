@@ -1,13 +1,13 @@
 package iguana;
 
 
-import antlr4java.JavaParser;
+import com.sun.xml.internal.ws.wsdl.writer.document.soap.Body;
 import iguana.utils.input.Input;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.eclipse.jdt.core.dom.*;
 import org.iguana.parsetree.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -41,8 +41,16 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return packageDeclaration;
             }
 
+            // ImportDeclaration: "import"  "static"?  {Identifier "."}+ ("." "*")? ";"
             case "ImportDeclaration": {
                 ImportDeclaration importDeclaration = ast.newImportDeclaration();
+                if (isOptionNotEmpty(node.childAt(1))) {
+                    importDeclaration.setStatic(true);
+                }
+                importDeclaration.setName(getQualifiedName(node.childAt(2)));
+                if (isOptionNotEmpty(node.childAt(3))) {
+                    importDeclaration.setOnDemand(true);
+                }
                 return importDeclaration;
             }
 
@@ -51,17 +59,53 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 classDeclaration.modifiers().addAll(createList(node.getChildWithName("ClassModifier*").children()));
                 classDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
                 classDeclaration.bodyDeclarations().addAll(createList(node.getChildWithName("ClassBody").childAt(1).children()));
-                if (hasChild(node.childAt(4))) { // ("extends" Type)?
-                    classDeclaration.setSuperclassType((Type) node.childAt(4).childAt(1).accept(this));
+
+                ParseTreeNode extendsNode = node.childAt(4);
+                if (isOptionNotEmpty(extendsNode)) { // ("extends" Type)?
+                    classDeclaration.setSuperclassType((Type) getOption(extendsNode).get(1).accept(this));
                 }
                 return classDeclaration;
             }
 
+            // EnumDeclaration: ClassModifier* "enum" Identifier ("implements" TypeList)? EnumBody
             case "EnumDeclaration": {
                 EnumDeclaration enumDeclaration = ast.newEnumDeclaration();
-                enumDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
                 enumDeclaration.modifiers().addAll(createList(node.getChildWithName("ClassModifier*").children()));
+                enumDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                if (isOptionNotEmpty(node.childAt(3))) {
+                    enumDeclaration.superInterfaceTypes().addAll(getTypeList(getOption(node.childAt(3)).get(1)));
+                }
+
+                List<BodyDeclaration> enumConstants = createList(getListIgnoreSeparators(node.getChildWithName("EnumBody").childAt(1)), BodyDeclaration.class);
+                enumDeclaration.enumConstants().addAll(enumConstants);
+
+                if (isOptionNotEmpty(node.getChildWithName("EnumBody").childAt(3))) {
+                    List<BodyDeclaration> enumBodyDeclararions = createList(node.childAt(4).childAt(3).childAt(0).childAt(1).children(), BodyDeclaration.class);
+                    enumDeclaration.bodyDeclarations().addAll(enumBodyDeclararions);
+                }
+
                 return enumDeclaration;
+            }
+
+            // EnumConstant: Annotation* Identifier Arguments? ClassBody?
+            case "EnumConstant": {
+                EnumConstantDeclaration enumConstantDeclaration = ast.newEnumConstantDeclaration();
+
+                enumConstantDeclaration.modifiers().addAll(createList(node.childAt(0).children()));
+                enumConstantDeclaration.setName(getIdentifier(node.childAt(1)));
+
+//                if (isOptionNotEmpty(node.childAt(2))) {
+//                    enumConstantDeclaration.arguments().addAll(getArguments(ctx.arguments()));
+//                }
+//
+//                if (isOptionNotEmpty(node.childAt(3))) {
+//                    AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
+//                    anonymousClassDeclaration.bodyDeclarations().addAll(createList(ctx.classBody().classBodyDeclaration()));
+//                    enumConstantDeclaration.setAnonymousClassDeclaration(anonymousClassDeclaration);
+//                }
+
+                return enumConstantDeclaration;
+
             }
 
             case "NormalInterfaceDeclaration": {
@@ -138,44 +182,43 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 }
             }
 
-            case "ReferenceTypeNonArrayType": {
-                return null;
+            /*
+             * Type
+             *    : BasicType ("[" "]")*
+             *    | ReferenceType ("[" "]")*
+             */
+            case "Type": {
+                Type type = (Type) node.childAt(0).accept(this);
+                int dimensions = getDimensions(node.childAt(1));
+                if (dimensions > 0) {
+                    return ast.newArrayType(type, dimensions);
+                }
+                return type;
             }
 
-            case "TypeDeclSpecifier": {
-//                Type type = ast.newSimpleType(getIdentifier(node.getChildWithName("Identifier")));
-//
-//                for (int i = 0; i < node.childAt(1).children().size() / 3; i++) {
-//                    ParameterizedType parameterizedType = ast.newParameterizedType(type);
-//                    ParseTreeNode typeArgumentsParseTree = node.childAt(1).childAt(i);
-//                    if (hasChild(typeArgumentsParseTree)) {
-//                        parameterizedType.typeArguments().addAll(getTypeArguments(typeArgumentsParseTree));
-//                        type = parameterizedType;
-//                    }
-//                }
-//
-//                while (true) {
-//                    if (i >= ctx.getChildCount()) break;
-//                    if (ctx.getChild(i).getText().equals(".")) {
-//                        i++;
-//                    }
-//                    if (isIdentifier(ctx.getChild(i))) {
-//                        type = ast.newQualifiedType(type, ast.newSimpleName(ctx.getChild(i).getText()));
-//                        if (i + 1 < ctx.getChildCount() && ctx.getChild(i + 1) instanceof JavaParser.TypeArgumentsContext) {
-//                            type = ast.newParameterizedType(type);
-//                            JavaParser.TypeArgumentsContext typeArguments = (JavaParser.TypeArgumentsContext) ctx.getChild(i + 1);
-//                            if (typeArguments.typeArgument() != null) {
-//                                ((ParameterizedType) type).typeArguments().addAll(createList(typeArguments.typeArgument()));
-//                            }
-//                            i++;
-//                        }
-//                        i++;
-//                    } else {
-//                        break;
-//                    }
-//                }
+            // Identifier TypeArguments? ( '.' Identifier TypeArguments? )*
+            case "ReferenceType": {
+                Type type = ast.newSimpleType(getIdentifier(node.getChildWithName("Identifier")));
 
-                return null;
+                if (isOptionNotEmpty(node.childAt(1))) {
+                    ParameterizedType parameterizedType = ast.newParameterizedType(type);
+                    ParseTreeNode typeArgumentsParseTree = node.childAt(1);
+                    if (isOptionNotEmpty(typeArgumentsParseTree)) {
+                        parameterizedType.typeArguments().addAll(getTypeArguments(typeArgumentsParseTree));
+                        type = parameterizedType;
+                    }
+                }
+
+                for (int i = 0; i < node.childAt(1).children().size() / 3; i++) {
+                    ParameterizedType parameterizedType = ast.newParameterizedType(type);
+                    ParseTreeNode typeArgumentsParseTree = node.childAt(1).childAt(i);
+                    if (isOptionNotEmpty(typeArgumentsParseTree)) {
+                        parameterizedType.typeArguments().addAll(getTypeArguments(typeArgumentsParseTree));
+                        type = parameterizedType;
+                    }
+                }
+
+                return type;
             }
 
             case "TypeArgument": {
@@ -186,7 +229,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
 
                     case "wildCardTypeArgument": {
                         WildcardType wildcardType = ast.newWildcardType();
-                        if (hasChild(node.childAt(1))) { // "?" (("extends" | "super") Type)?
+                        if (isOptionNotEmpty(node.childAt(1))) { // "?" (("extends" | "super") Type)?
                             String superOrExtends = node.childAt(1).childAt(0).getText(input);
                             if (superOrExtends.equals("super")) {
                                 wildcardType.setUpperBound(false);
@@ -251,6 +294,27 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return ast.newSimpleName(node.getText(input));
     }
 
+    public Name getQualifiedName(ParseTreeNode node) {
+        List<SimpleName> identifiers = createList(getListIgnoreSeparators(node), SimpleName.class);
+
+        SimpleName simpleName = identifiers.get(0);
+
+        if (identifiers.size() == 1) {
+            return simpleName;
+        }
+
+        Name qualifier = simpleName;
+        simpleName = identifiers.get(1);
+        qualifier = ast.newQualifiedName(qualifier, simpleName);
+
+        for (int i = 2; i < identifiers.size(); i++) {
+            simpleName = identifiers.get(i);
+            qualifier = ast.newQualifiedName(qualifier, simpleName);
+        }
+
+        return qualifier;
+    }
+
     private List<VariableDeclarationFragment> getVariableDeclarationFragments(ParseTreeNode node) {
         List<ParseTreeNode> variableDeclarators = node.childAt(0).getChildrenWithName("VariableDeclarator");
         List<VariableDeclarationFragment> fragments = new ArrayList<>();
@@ -266,8 +330,30 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return createList(node.childAt(1).children(), Type.class);
     }
 
-    private boolean hasChild(ParseTreeNode node) {
+    private List<Type> getTypeList(ParseTreeNode node) {
+        return createList(getListIgnoreSeparators(node.childAt(0)), Type.class);
+    }
+
+    private List<ParseTreeNode> getOption(ParseTreeNode node) {
+        return node.childAt(0).children();
+    }
+
+    private int getDimensions(ParseTreeNode node) {
+        return node.children().size() / 2;
+    }
+
+    private boolean isOptionNotEmpty(ParseTreeNode node) {
         return node.children().size() > 0;
+    }
+
+    private List<ParseTreeNode> getListIgnoreSeparators(ParseTreeNode node) {
+        List<ParseTreeNode> result = new ArrayList<>(node.children().size());
+        int i = 0;
+        while (i < node.children().size()) {
+            result.add(node.childAt(i));
+            i++;
+        }
+        return result;
     }
 
 }

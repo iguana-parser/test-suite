@@ -72,6 +72,12 @@ class TestIguanaASTs {
         String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
         Input input = Input.fromString(inputContent);
         ParseResult<NonPackedNode> result = Iguana.parse(input, grammar);
+
+        if (result.isParseError()) {
+            int lineNumber = input.getLineNumber(result.asParseError().getInputIndex());
+            int columnNUmber = input.getColumnNumber(result.asParseError().getInputIndex());
+            System.out.println("Parse error at " + lineNumber + ":" + columnNUmber);
+        }
         assertTrue(result.isParseSuccess());
 
         Set<Symbol> ignoreSet = new HashSet<>();

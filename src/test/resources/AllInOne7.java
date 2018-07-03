@@ -528,7 +528,7 @@ public class CustomClass extends AbstractClass {
 }
 
 // Enumerations -------------------
-enum Season {
+enum Season implements SuperEnumBase1, SuperEnumBase2 {
     WINTER, SPRING, SUMMER, AUTUMN
 }
 
