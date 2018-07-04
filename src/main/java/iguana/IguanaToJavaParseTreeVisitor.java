@@ -208,9 +208,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return block;
             }
 
-            // LocalVariableDeclarationStatement: VariableModifier* Type VariableDeclarators ";"
+            // LocalVariableDeclarationStatement: VariableModifier* Type {VariableDeclarator ","}+ ";"
             case "LocalVariableDeclarationStatement": {
-                List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(node.getChildWithName("VariableDeclarators").childAt(0));
+                List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(node.childAt(2));
                 VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragments.get(0));
                 for (int i = 1; i < fragments.size(); i++) {
                     variableDeclarationStatement.fragments().add(fragments.get(i));
@@ -321,12 +321,11 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 }
             }
 
-            // TypeParameter: TypeVariable TypeBound?
+            // TypeParameter: Identifier TypeBound?
             case "TypeParameter": {
                 TypeParameter typeParameter = ast.newTypeParameter();
 
-                // TODO: flatten type parameter
-                typeParameter.setName(getIdentifier(node.getChildWithName("TypeVariable").childAt(0)));
+                typeParameter.setName(getIdentifier(node.getChildWithName("Identifier")));
 
                 // TypeBound: "extends" {ReferenceType "&"}+
                 if (isOptionNotEmpty(node.getChildWithName("TypeBound?"))) {
