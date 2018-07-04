@@ -221,6 +221,64 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             }
 
             case "Statement": {
+                switch (node.getGrammarDefinition().getLabel()) {
+                    case "expressionStmt": {
+                        return null;
+                    }
+                    case "assertStmt": {
+                        return null;
+                    }
+                    case "switchStmt": {
+                        return null;
+                    }
+                    case "doStmt": {
+                        return null;
+                    }
+                    case "breakStmt": {
+                        BreakStatement breakStatement = ast.newBreakStatement();
+                        if (isOptionNotEmpty(node.getChildWithName("Identifier?"))) {
+                            breakStatement.setLabel(getIdentifier(node.getChildWithName("Identifier?").childAt(0)));
+                        }
+                        return breakStatement;
+                    }
+                    case "continueStmt": {
+                        ContinueStatement continueStatement = ast.newContinueStatement();
+                        if (isOptionNotEmpty(node.getChildWithName("Identifier?"))) {
+                            continueStatement.setLabel(getIdentifier(node.getChildWithName("Identifier?").childAt(0)));
+                        }
+                        return continueStatement;
+                    }
+                    case "returnStmt": {
+                        return null;
+                    }
+                    case "synchronizedStmt": {
+                        return null;
+                    }
+                    case "throwStmt": {
+                        return null;
+                    }
+                    case "tryStmt": {
+                        return null;
+                    }
+                    case "tryWithResourcesStmt": {
+                        return null;
+                    }
+                    case "labelStmt": {
+                        return null;
+                    }
+                    case "ifStmt": {
+                        return null;
+                    }
+                    case "ifElseStmt": {
+                        return null;
+                    }
+                    case "whileStmt": {
+                        return null;
+                    }
+                    case "forStmt": {
+                        return null;
+                    }
+                }
                 return null;
             }
 

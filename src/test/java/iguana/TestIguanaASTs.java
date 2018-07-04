@@ -57,7 +57,7 @@ class TestIguanaASTs {
         grammarGraph = GrammarGraph.from(grammar);
     }
 
-//    @TestFactory
+    @TestFactory
     Collection<DynamicTest> testIguana() throws Exception {
         List<Path> javaFiles = getFiles(getJDK7SourceLocation(), ".java");
 
