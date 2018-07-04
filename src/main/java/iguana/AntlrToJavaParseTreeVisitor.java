@@ -794,7 +794,7 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
         singleVariableDeclaration.setType((Type) ctx.typeType().accept(this));
         singleVariableDeclaration.modifiers().addAll(createList(ctx.variableModifier()));
         singleVariableDeclaration.setVarargs(true);
-        singleVariableDeclaration.setName(ast.newSimpleName(ctx.variableDeclaratorId().IDENTIFIER().getText()));
+        singleVariableDeclaration.setName(getIdentifier(ctx.variableDeclaratorId().IDENTIFIER()));
         return singleVariableDeclaration;
     }
 

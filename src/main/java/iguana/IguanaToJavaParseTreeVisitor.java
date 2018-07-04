@@ -1,16 +1,16 @@
 package iguana;
 
 
-import com.sun.xml.internal.ws.wsdl.writer.document.soap.Body;
 import iguana.utils.input.Input;
-import org.antlr.v4.runtime.tree.ParseTree;
 import org.eclipse.jdt.core.dom.*;
 import org.iguana.parsetree.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
+import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
@@ -54,10 +54,15 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return importDeclaration;
             }
 
+            // NormalClassDeclaration: ClassModifier* "class" Identifier TypeParameters? ("extends" Type)? ("implements" TypeList)? ClassBody;
             case "NormalClassDeclaration": {
                 TypeDeclaration classDeclaration = ast.newTypeDeclaration();
                 classDeclaration.modifiers().addAll(createList(node.getChildWithName("ClassModifier*").children()));
                 classDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+
+                if (isOptionNotEmpty(node.getChildWithName("TypeParameters?"))) {
+                    classDeclaration.typeParameters().addAll(getTypeParameters(node.getChildWithName("TypeParameters?").childAt(0)));
+                }
                 classDeclaration.bodyDeclarations().addAll(createList(node.getChildWithName("ClassBody").childAt(1).children()));
 
                 ParseTreeNode extendsNode = node.childAt(4);
@@ -130,9 +135,62 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return fieldDeclaration;
             }
 
+            // MethodDeclaration: MethodModifier* TypeParameters? Result MethodDeclarator Throws? MethodBody
+            // MethodDeclarator:  Identifier "(" FormalParameterList? ")" ("[" "]")*
             case "MethodDeclaration": {
                 MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
+
+                methodDeclaration.modifiers().addAll(createList(node.getChildWithName("MethodModifier*").children()));
+
+                if (isOptionNotEmpty(node.getChildWithName("TypeParameters?"))) {
+                    methodDeclaration.typeParameters().addAll(getTypeParameters(node.getChildWithName("TypeParameters?").childAt(0)));
+                }
+                methodDeclaration.setReturnType2((Type) node.getChildWithName("Result").accept(this));
+
+                ParseTreeNode methodDeclarator = node.getChildWithName("MethodDeclarator");
+                methodDeclaration.setName(getIdentifier(methodDeclarator.getChildWithName("Identifier")));
+
+                if (isOptionNotEmpty(methodDeclarator.getChildWithName("FormalParameterList?"))) {
+                    methodDeclaration.parameters().addAll(getFormalParameters(methodDeclarator.getChildWithName("FormalParameterList?").childAt(0)));
+                }
+                methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(2)));
+
                 return methodDeclaration;
+            }
+
+            // FormalParameter: VariableModifier* Type VariableDeclaratorId
+            case "FormalParameter": {
+                SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+                singleVariableDeclaration.setType((Type) node.getChildWithName("Type").accept(this));
+                singleVariableDeclaration.modifiers().addAll(createList(node.getChildWithName("VariableModifier*").children()));
+                ParseTreeNode variableDeclaratorId = node.getChildWithName("VariableDeclaratorId");
+                singleVariableDeclaration.extraDimensions().addAll(getDimensions(variableDeclaratorId.childAt(1)));
+                singleVariableDeclaration.setName(getIdentifier(variableDeclaratorId.getChildWithName("Identifier")));
+                return singleVariableDeclaration;
+            }
+
+            /*
+             * LastFormalParameter
+             *   : VariableModifier* Type "..." VariableDeclaratorId
+             *   | FormalParameter
+             */
+            case "LastFormalParameter": {
+                if (node.children().size() == 1) { // Second alternative
+                    return node.childAt(0).accept(this);
+                }
+                SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+                singleVariableDeclaration.setType((Type) node.getChildWithName("Type").accept(this));
+                singleVariableDeclaration.modifiers().addAll(createList(node.childAt(0).children()));
+                singleVariableDeclaration.setVarargs(true);
+                singleVariableDeclaration.setName(getIdentifier(node.getChildWithName("VariableDeclaratorId").getChildWithName("Identifier")));
+                return singleVariableDeclaration;
+            }
+
+            case "Result": {
+                if (node.childAt(0).getName().equals("Type")) {
+                    return node.childAt(0).accept(this);
+                }
+                return ast.newPrimitiveType(PrimitiveType.VOID);
             }
 
             case "ConstructorDeclaration": {
@@ -168,9 +226,14 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return qualifier;
             }
 
+            /*
+             * Type
+             *   : PrimitiveType ("[" "]")*
+             *   | ReferenceType ("[" "]")*
+             */
             case "Type": {
                 Type type = (Type) node.childAt(0).accept(this);
-                int dimensions = getDimensions(node.childAt(1));
+                int dimensions = getDimensionsSize(node.childAt(1));
                 if (dimensions > 0) {
                     return ast.newArrayType(type, dimensions);
                 }
@@ -201,6 +264,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
 
                 return type;
             }
+
             case "TypeArgument": {
                 switch (node.getGrammarDefinition().getLabel()) {
                     case "simpleTypeArgument": {
@@ -219,6 +283,21 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         }
                     }
                 }
+            }
+
+            // TypeParameter: TypeVariable TypeBound?
+            case "TypeParameter": {
+                TypeParameter typeParameter = ast.newTypeParameter();
+
+                // TODO: flatten type parameter
+                typeParameter.setName(getIdentifier(node.getChildWithName("TypeVariable").childAt(0)));
+
+                // TypeBound: "extends" {ReferenceType "&"}+
+                if (isOptionNotEmpty(node.getChildWithName("TypeBound?"))) {
+                    typeParameter.typeBounds().addAll(createList(node.getChildWithName("TypeBound?").childAt(0).childAt(1).getChildrenWithName("ReferenceType")));
+                }
+
+                return typeParameter;
             }
 
             case "VariableModifier":
@@ -327,7 +406,28 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return fragments;
     }
 
+    // FormalParameterList: (FormalParameter ",")* LastFormalParameter
+    private List<SingleVariableDeclaration> getFormalParameters(ParseTreeNode node) {
+        final List<SingleVariableDeclaration> formalParameters = new ArrayList<>();
+
+        if (isOptionNotEmpty(node.childAt(0))) {
+            for (SingleVariableDeclaration variableDeclaration : createList(node.childAt(0).childAt(0).getChildrenWithName("FormalParameter"), SingleVariableDeclaration.class)) {
+                formalParameters.add(variableDeclaration);
+            }
+        }
+
+        formalParameters.add((SingleVariableDeclaration) node.getChildWithName("LastFormalParameter").accept(this));
+
+        return formalParameters;
+    }
+
+
     private List<Type> getTypeArguments(ParseTreeNode node) {
+        return createList(node.childAt(1).children(), Type.class);
+    }
+
+    // TypeParameters: "\<" {TypeParameter ","}+ "\>"
+    private List<Type> getTypeParameters(ParseTreeNode node) {
         return createList(node.childAt(1).children(), Type.class);
     }
 
@@ -339,8 +439,17 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return node.childAt(0).children();
     }
 
-    private int getDimensions(ParseTreeNode node) {
-        return node.children().size() / 2;
+    // ('[' ']')*
+    private int getDimensionsSize(ParseTreeNode node) {
+        if (node.children().size() == 0) {
+            return 0;
+        }
+        return node.childAt(0).children().size() / 2;
+    }
+
+    private List<Dimension> getDimensions(ParseTreeNode node) {
+        if (node == null) return emptyList();
+        return IntStream.range(0, getDimensionsSize(node)).mapToObj(i -> ast.newDimension()).collect(toList());
     }
 
     private boolean isOptionNotEmpty(ParseTreeNode node) {
