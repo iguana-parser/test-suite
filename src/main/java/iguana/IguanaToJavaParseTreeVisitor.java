@@ -132,6 +132,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             case "FieldDeclaration": {
                 List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(node.childAt(2));
                 FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
+                fieldDeclaration.setType((Type) node.getChildWithName("Type").accept(this));
+                fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
                 return fieldDeclaration;
             }
 
@@ -154,6 +156,10 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                     methodDeclaration.parameters().addAll(getFormalParameters(methodDeclarator.getChildWithName("FormalParameterList?").childAt(0)));
                 }
                 methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(2)));
+
+                if (isOptionNotEmpty(node.getChildWithName("Throws?"))) {
+                    methodDeclaration.thrownExceptionTypes().addAll(getThrownExceptionTypes(node.getChildWithName("Throws?").childAt(0)));
+                }
 
                 methodDeclaration.setBody((Block) node.getChildWithName("MethodBody").accept(this));
 
@@ -221,19 +227,48 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             }
 
             case "Statement": {
+
+                if (node.getGrammarDefinition().getLabel() == null) {
+                    return node.childAt(0).accept(this);
+                }
+
                 switch (node.getGrammarDefinition().getLabel()) {
+
+                    // Expression ";"
                     case "expressionStmt": {
-                        return null;
+                        return ast.newExpressionStatement((Expression) node.getChildWithName("Expression").accept(this));
                     }
+
+                    // "assert" Expression (":" Expression)? ";"
                     case "assertStmt": {
-                        return null;
+                        AssertStatement assertStatement = ast.newAssertStatement();
+                        assertStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        if (isOptionNotEmpty(node.childAt(2))) {
+                            assertStatement.setMessage((Expression) node.childAt(2).childAt(0).getChildWithName("Expression").accept(this));
+                        }
+                        return assertStatement;
                     }
+
+                    // "switch" "(" Expression ")" "{" SwitchBlockStatementGroup* SwitchLabel* "}"
                     case "switchStmt": {
-                        return null;
+                        SwitchStatement switchStatement = ast.newSwitchStatement();
+                        switchStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+
+                        List<Statement> statements = node.getChildWithName("SwitchBlockStatementGroup*").children().stream().flatMap(stmt -> getSwitchBlockStatements(stmt).stream()).collect(toList());
+                        switchStatement.statements().addAll(statements);
+                        switchStatement.statements().addAll(createList(node.getChildWithName("SwitchLabel*").children()));
+                        return switchStatement;
                     }
+
+                    // "do" Statement "while" "(" Expression ")" ";"
                     case "doStmt": {
-                        return null;
+                        DoStatement doStatement = ast.newDoStatement();
+                        doStatement.setBody((Statement) node.getChildWithName("Statement").accept(this));
+                        doStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        return doStatement;
                     }
+
+                    // "break" Identifier? ";"
                     case "breakStmt": {
                         BreakStatement breakStatement = ast.newBreakStatement();
                         if (isOptionNotEmpty(node.getChildWithName("Identifier?"))) {
@@ -241,6 +276,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         }
                         return breakStatement;
                     }
+
+                    // "continue" Identifier? ";"
                     case "continueStmt": {
                         ContinueStatement continueStatement = ast.newContinueStatement();
                         if (isOptionNotEmpty(node.getChildWithName("Identifier?"))) {
@@ -248,51 +285,229 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         }
                         return continueStatement;
                     }
+
+                    // "return" Expression? ";"
                     case "returnStmt": {
-                        return null;
+                        ReturnStatement returnStatement = ast.newReturnStatement();
+                        if (isOptionNotEmpty(node.getChildWithName("Expression?"))) {
+                            returnStatement.setExpression((Expression) node.getChildWithName("Expression?").childAt(0).accept(this));
+                        }
+                        return returnStatement;
                     }
+
+                    // synchronizedStmt: "synchronized" "(" Expression ")" Block
                     case "synchronizedStmt": {
-                        return null;
+                        SynchronizedStatement synchronizedStatement = ast.newSynchronizedStatement();
+                        synchronizedStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        synchronizedStatement.setBody((Block) node.getChildWithName("Block").accept(this));
+                        return synchronizedStatement;
                     }
+
+                    // "throw" Expression ";"
                     case "throwStmt": {
-                        return null;
+                        ThrowStatement throwStatement = ast.newThrowStatement();
+                        throwStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        return throwStatement;
                     }
+
+                    // "try" Block (CatchClause+ | (CatchClause* Finally))
                     case "tryStmt": {
-                        return null;
+                        // TODO: complete after removing superfluous grouping
+                        TryStatement tryStatement = ast.newTryStatement();
+                        tryStatement.setBody((Block) node.getChildWithName("Block").accept(this));
+
+//                        tryStatement.catchClauses().addAll(createList(ctx.catchClause()));
+//
+//                        if (ctx.finallyBlock() != null) {
+//                            tryStatement.setFinally((Block) ctx.finallyBlock().accept(this));
+//                        }
+                        return tryStatement;
                     }
+
+                    // "try" ResourceSpecification Block CatchClause* Finally?
                     case "tryWithResourcesStmt": {
-                        return null;
+                        TryStatement tryStatement = ast.newTryStatement();
+//                        tryStatement.resources().addAll(createList(ctx.resourceSpecification().resources().resource()));
+                        tryStatement.setBody((Block) node.getChildWithName("Block").accept(this));
+                        tryStatement.catchClauses().addAll(createList(node.getChildWithName("CatchClause*").children()));
+
+                        if (isOptionNotEmpty(node.getChildWithName("Finally?"))) {
+                            tryStatement.setFinally((Block) node.getChildWithName("Finally?").childAt(0).accept(this));
+                        }
+                        return tryStatement;
                     }
+
+                    // Identifier ":" Statement
                     case "labelStmt": {
-                        return null;
+                        LabeledStatement labeledStatement = ast.newLabeledStatement();
+                        labeledStatement.setLabel(getIdentifier(node.getChildWithName("Identifier")));
+                        labeledStatement.setBody((Statement) node.getChildWithName("Statement").accept(this));
+                        return labeledStatement;
                     }
+
+                    // "if" "(" Expression ")" Statement !>>> "else"
                     case "ifStmt": {
-                        return null;
+                        IfStatement ifStatement = ast.newIfStatement();
+                        ifStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        Statement thenBranch = (Statement) node.getChildWithName("Statement").accept(this);
+                        if (thenBranch != null) ifStatement.setThenStatement(thenBranch);
+                        return ifStatement;
                     }
+
+                    // "if" "(" Expression ")" Statement "else" Statement
+                    // TODO: add labels for ifThenElse
                     case "ifElseStmt": {
-                        return null;
+                        IfStatement ifStatement = ast.newIfStatement();
+                        ifStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+//                        Statement thenBranch = (Statement) node.getChildWithName("Statement").accept(this);
+//                        if (thenBranch != null)
+//                            ifStatement.setThenStatement(thenBranch);
+//                        Statement elseBranch = (Statement) ctx.elseBranch.accept(this);
+//                        if (elseBranch != null)
+//                            ifStatement.setElseStatement(elseBranch);
+                        return ifStatement;
                     }
+
+                    // "while" "(" Expression ")" Statement
                     case "whileStmt": {
-                        return null;
+                        WhileStatement whileStatement = ast.newWhileStatement();
+                        whileStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        whileStatement.setBody((Statement) node.getChildWithName("Statement").accept(this));
+                        return whileStatement;
                     }
+
+                    // forStmt: "for" "(" ForControl ")" Statement
+                    // TODO: update it after putting labels for alternatives of forStmt
                     case "forStmt": {
-                        return null;
+                        EnhancedForStatement forStatement = ast.newEnhancedForStatement();
+                        return forStatement;
+//                        if (ctx.forControl().enhancedForControl() != null) {
+//                            EnhancedForStatement forStatement = ast.newEnhancedForStatement();
+//
+//                            JavaParser.EnhancedForControlContext enhancedForControlContext = ctx.forControl().enhancedForControl();
+//                            forStatement.setExpression((Expression) enhancedForControlContext.expression().accept(this));
+//
+//                            SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+//                            singleVariableDeclaration.setType((Type) enhancedForControlContext.typeType().accept(this));
+//                            singleVariableDeclaration.setName(getIdentifier(enhancedForControlContext.variableDeclaratorId().IDENTIFIER()));
+//                            singleVariableDeclaration.modifiers().addAll(createList(enhancedForControlContext.variableModifier()));
+//                            List<Dimension> dimensions = getDimensions(ctx.forControl().enhancedForControl().variableDeclaratorId().dimensions());
+//                            singleVariableDeclaration.extraDimensions().addAll(dimensions);
+//
+//                            forStatement.setParameter(singleVariableDeclaration);
+//
+//                            forStatement.setBody((Statement) ctx.statement().accept(this));
+//                            return forStatement;
+//                        } else {
+//                            ForStatement forStatement = ast.newForStatement();
+//
+//                            if (ctx.forControl().forInit() != null) {
+//                                if (ctx.forControl().forInit().localVariableDeclaration() != null) {
+//                                    JavaParser.LocalVariableDeclarationContext localVariableDeclarationContext = ctx.forControl().forInit().localVariableDeclaration();
+//                                    List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(localVariableDeclarationContext.variableDeclarators());
+//                                    VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragments.get(0));
+//                                    variableDeclarationExpression.fragments().addAll(fragments.subList(1, fragments.size()));
+//                                    variableDeclarationExpression.modifiers().addAll(createList(localVariableDeclarationContext.variableModifier()));
+//                                    variableDeclarationExpression.setType((Type) localVariableDeclarationContext.typeType().accept(this));
+//
+//                                    forStatement.initializers().add(variableDeclarationExpression);
+//                                } else {
+//                                    forStatement.initializers().addAll(createList(ctx.forControl().forInit().expressionList().expression()));
+//                                }
+//                            }
+//
+//                            if (ctx.forControl().expression() != null) {
+//                                forStatement.setExpression((Expression) ctx.forControl().expression().accept(this));
+//                            }
+//
+//                            if (ctx.forControl().forUpdate != null) {
+//                                forStatement.updaters().addAll(createList(ctx.forControl().forUpdate.expression()));
+//                            }
+//
+//                            Statement statement = (Statement) ctx.statement().accept(this);
+//                            if (statement != null) forStatement.setBody(statement);
+//
+//                            return forStatement;
                     }
                 }
                 return null;
             }
 
+            /*
+             * SwitchLabel
+             *   : "case" ConstantExpression ":"
+             *   | "default" ":"
+             */
+            // TODO: after flattening constant expression, update this one
+            case "SwitchLabel": {
+                SwitchCase switchCase = ast.newSwitchCase();
+                switchCase.setExpression(null); // default case
+                if (node.hasChild("ConstantExpression")) {
+                    switchCase.setExpression((Expression) node.getChildWithName("ConstantExpression").childAt(0).accept(this));
+                }
+                return switchCase;
+            }
+
+            // CatchClause: "catch" "(" VariableModifier* CatchType Identifier ")" Block
+            case "CatchClause": {
+                CatchClause catchClause = ast.newCatchClause();
+
+                SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+                singleVariableDeclaration.modifiers().addAll(createList(node.getChildWithName("VariableModifier*").children()));
+                singleVariableDeclaration.setType((Type) node.getChildWithName("CatchType").accept(this));
+                singleVariableDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                catchClause.setException(singleVariableDeclaration);
+
+                catchClause.setBody((Block) node.getChildWithName("Block").accept(this));
+
+                return catchClause;
+            }
+
+            // CatchType: {QualifiedIdentifier "|"}+
+            case "CatchType": {
+                List<Type> types = createList(node.getChildrenWithName("QualifiedIdentifier")).stream().map(name -> ast.newSimpleType((Name) name)).collect(toList());
+                if (types.size() == 1) {
+                    return types.get(0);
+                }
+                UnionType unionType = ast.newUnionType();
+                unionType.types().addAll(types);
+                return unionType;
+            }
+
+            // Finally: "finally" Block
+            case "Finally": {
+                return node.getChildWithName("Block").accept(this);
+            }
+
+            case "Expression": {
+                return ast.newNumberLiteral("1");
+            }
+
+            // ConstructorDeclaration: ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? Block
             case "ConstructorDeclaration": {
                 MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
                 constructorDeclaration.setConstructor(true);
+                constructorDeclaration.modifiers().addAll(createList(node.getChildWithName("ConstructorModifier*").children()));
+                if (isOptionNotEmpty(node.getChildWithName("TypeParameters?"))) {
+                    constructorDeclaration.typeParameters().addAll(getTypeParameters(node.getChildWithName("TypeParameters?").childAt(0)));
+                }
+                constructorDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                if (isOptionNotEmpty(node.getChildWithName("FormalParameterList?"))) {
+                    constructorDeclaration.parameters().addAll(getFormalParameters(node.getChildWithName("FormalParameterList?").childAt(0)));
+                }
+                if (isOptionNotEmpty(node.getChildWithName("Throws?"))) {
+                    constructorDeclaration.thrownExceptionTypes().addAll(getThrownExceptionTypes(node.getChildWithName("Throws?").childAt(0)));
+                }
                 return constructorDeclaration;
             }
 
+            // Initializer: "static"? Block
             case "Initializer": {
                 Initializer initializer = ast.newInitializer();
                 if (!isOptionNotEmpty(node.childAt(0))) {
                     initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
                 }
+                initializer.setBody((Block) node.getChildWithName("Block").accept(this));
                 return initializer;
             }
 
@@ -480,11 +695,17 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
 
     // {VariableDeclarator ","}+
     private List<VariableDeclarationFragment> getVariableDeclarationFragments(ParseTreeNode node) {
-        List<ParseTreeNode> variableDeclarators = node.getChildrenWithName("VariableDeclarator");
+        List<ParseTreeNode> variableDeclaratorNodes = node.getChildrenWithName("VariableDeclarator");
         List<VariableDeclarationFragment> fragments = new ArrayList<>();
-        for (ParseTreeNode variableDeclarator : variableDeclarators) {
+        // VariableDeclarator: VariableDeclaratorId ("=" VariableInitializer)?
+        for (ParseTreeNode variableDeclaratorNode : variableDeclaratorNodes) {
             VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-            fragment.setName(getIdentifier(variableDeclarator.getChildWithName("VariableDeclaratorId").getChildWithName("Identifier")));
+            fragment.setName(getIdentifier(variableDeclaratorNode.getChildWithName("VariableDeclaratorId").getChildWithName("Identifier")));
+            if (isOptionNotEmpty(variableDeclaratorNode.childAt(1))) {
+                // TODO: flatten sequence inside option
+                Expression expression = (Expression) variableDeclaratorNode.childAt(1).childAt(0).getChildWithName("VariableInitializer").accept(this);
+                fragment.setInitializer(expression);
+            }
             fragments.add(fragment);
         }
         return fragments;
@@ -516,12 +737,26 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return createList(node.childAt(1).children(), Type.class);
     }
 
+    // Throws: "throws" {QualifiedIdentifier ","}+
+    private List<Type> getThrownExceptionTypes(ParseTreeNode node) {
+        return createList(node.childAt(1).children()).stream().map(name -> ast.newSimpleType((Name) name)).collect(toList());
+    }
+
     private List<Type> getTypeList(ParseTreeNode node) {
         return createList(node.childAt(0).getChildrenWithName("Type"), Type.class);
     }
 
     private List<ParseTreeNode> getOption(ParseTreeNode node) {
         return node.childAt(0).children();
+    }
+
+    // SwitchBlockStatementGroup = = SwitchLabel+ BlockStatement+
+    private List<Statement> getSwitchBlockStatements(ParseTreeNode node) {
+        List<Statement> switchLabels = createList(node.getChildWithName("SwitchLabel+").children(), Statement.class);
+        List<Statement> blockStatements = createList(node.getChildWithName("BlockStatement+").children(), Statement.class);
+        List<Statement> result = new ArrayList<>(switchLabels);
+        result.addAll(blockStatements);
+        return result;
     }
 
     // ('[' ']')*

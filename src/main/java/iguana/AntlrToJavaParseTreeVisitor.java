@@ -968,7 +968,7 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
         SwitchStatement switchStatement = ast.newSwitchStatement();
         switchStatement.setExpression((Expression) ctx.parExpression().expression().accept(this));
 
-        List<Statement> statements = ctx.switchBlockStatementGroup().stream().flatMap(stmt -> getStatements(stmt).stream()).collect(toList());
+        List<Statement> statements = ctx.switchBlockStatementGroup().stream().flatMap(stmt -> getSwitchBlockStatements(stmt).stream()).collect(toList());
         switchStatement.statements().addAll(statements);
         switchStatement.statements().addAll(createList(ctx.switchLabel()));
         return switchStatement;
@@ -1227,7 +1227,7 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
         names.add(ast.newSimpleName(fieldAccess.getName().getIdentifier()));
     }
 
-    private List<Statement> getStatements(JavaParser.SwitchBlockStatementGroupContext ctx) {
+    private List<Statement> getSwitchBlockStatements(JavaParser.SwitchBlockStatementGroupContext ctx) {
         List<Statement> switchLabels = createList(ctx.switchLabel(), Statement.class);
         List<Statement> blockStatements = createList(ctx.blockStatement(), Statement.class);
         List<Statement> result = new ArrayList<>(switchLabels);
