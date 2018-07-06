@@ -121,10 +121,12 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return interfaceDeclaration;
             }
 
+            // InterfaceModifier* "@" "interface" Identifier AnnotationTypeBody
             case "AnnotationTypeDeclaration": {
                 AnnotationTypeDeclaration annotationTypeDeclaration = ast.newAnnotationTypeDeclaration();
                 annotationTypeDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
                 annotationTypeDeclaration.modifiers().addAll(createList(node.getChildWithName("InterfaceModifier*").children()));
+                // TODO: add annotation type bodies
                 return annotationTypeDeclaration;
             }
 
@@ -480,7 +482,131 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             }
 
             case "Expression": {
+                if (node.getGrammarDefinition().getLabel() == null) {
+                    return ast.newNumberLiteral("1");
+                }
+                switch (node.getGrammarDefinition().getLabel()) {
+                    case "primary": {
+                        return node.childAt(0).accept(this);
+                    }
+
+                    // TODO: Complete after making the first expression an identifier
+                    // Expression !brackets "(" ArgumentList? ")"
+                    case "methodCall": {
+//                        MethodInvocation methodInvocation = ast.newMethodInvocation();
+//                        methodInvocation.setName(getIdentifier());
+//                        if (ctx.expressionList() != null) {
+//                            methodInvocation.arguments().addAll(createList(ctx.expressionList().expression()));
+//                        }
+//                        return methodInvocation;
+                        return ast.newNumberLiteral("1");
+                    }
+
+                    // TODO: update this after giving them label
+                    // Expression "[" Expression "]"
+                    case "arrayAccess": {
+                        ArrayAccess arrayAccess = ast.newArrayAccess();
+                        arrayAccess.setArray((Expression) node.childAt(0).accept(this));
+                        arrayAccess.setIndex((Expression) node.childAt(2).accept(this));
+                        return arrayAccess;
+                    }
+
+                    // Expression ("++" | "--")
+                    case "postfix": {
+                        PostfixExpression postfixExpression = ast.newPostfixExpression();
+                        postfixExpression.setOperand((Expression) node.getChildWithName("Expression").accept(this));
+                        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
+                        return postfixExpression;
+                    }
+
+                    // TODO: fix it
+                    case "unaryPlusMinus":
+                    case "prefix": {
+                        PrefixExpression prefixExpression = ast.newPrefixExpression();
+                        prefixExpression.setOperand((Expression) node.getChildWithName("Expression").accept(this));
+                        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(node.childAt(0).getText(input)));
+                        return prefixExpression;
+                    }
+
+                    // "(" Type ")" Expression
+                    // TODO: Rename to case expression
+                    case "caseExpr": {
+                        CastExpression castExpression = ast.newCastExpression();
+                        castExpression.setType((Type) node.getChildWithName("Type").accept(this));
+                        castExpression.setExpression((Expression) node.getChildWithName("Expresssion").accept(this));
+                        return castExpression;
+                    }
+
+                    // Expression "instanceof" Type
+                    case "instanceOfExpr": {
+                        InstanceofExpression instanceofExpression = ast.newInstanceofExpression();
+                        instanceofExpression.setLeftOperand((Expression) node.getChildWithName("Expression").accept(this));
+                        instanceofExpression.setRightOperand((Type) node.getChildWithName("Type").accept(this));
+                        return instanceofExpression;
+                    }
+
+                    // Expression "?" Expression ":" Expression
+                    case "conditionalExpr": {
+                        ConditionalExpression conditionalExpression = ast.newConditionalExpression();
+                        conditionalExpression.setExpression((Expression) node.childAt(0).accept(this));
+                        conditionalExpression.setThenExpression((Expression) node.childAt(2).accept(this));
+                        conditionalExpression.setElseExpression((Expression) node.childAt(4).accept(this));
+                        return conditionalExpression;
+                    }
+
+                    // TODO: rename brackets to parExpr
+                    // "(" Expression ")"
+                    case "brackets": {
+                        ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
+                        parenthesizedExpression.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        return parenthesizedExpression;
+                    }
+
+                    // TODO: rename ao to assignmentExpr
+                    // Expression AssignmentOperator Expression
+                    case "ao": {
+                        Assignment assignment = ast.newAssignment();
+                        assignment.setLeftHandSide((Expression) node.childAt(0).accept(this));
+                        assignment.setRightHandSide((Expression) node.childAt(2).accept(this));
+                        assignment.setOperator(Assignment.Operator.toOperator(node.childAt(1).getText(input)));
+                        return assignment;
+                    }
+
+                    default:
+                        return ast.newNumberLiteral("1");
+                }
+            }
+
+            case "Primary": {
+                if (node.hasChild("Literal")) {
+                    return node.getChildWithName("Literal").accept(this);
+                }
                 return ast.newNumberLiteral("1");
+            }
+
+            case "IntegerLiteral":
+            case "FloatingPointLiteral": {
+                return ast.newNumberLiteral(node.getText(input));
+            }
+
+            case "BooleanLiteral": {
+                return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText(input)));
+            }
+
+            case "CharacterLiteral": {
+                CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+                characterLiteral.setEscapedValue(node.getText(input));
+                return characterLiteral;
+            }
+
+            case "StringLiteral": {
+                StringLiteral stringLiteral = ast.newStringLiteral();
+                stringLiteral.setEscapedValue(node.getText(input));
+                return stringLiteral;
+            }
+
+            case "NullLiteral": {
+                return ast.newNullLiteral();
             }
 
             // ConstructorDeclaration: ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? Block
@@ -637,7 +763,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
 
     @Override
     public ASTNode visit(AmbiguityNode ambiguityNode) {
-        throw new RuntimeException("Ambiguity");
+        // TODO: throw an exception here
+        return ambiguityNode.childAt(0).accept(this);
+//        throw new RuntimeException("Ambiguity");
     }
 
     @Override
