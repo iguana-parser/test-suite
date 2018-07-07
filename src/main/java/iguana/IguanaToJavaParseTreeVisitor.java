@@ -329,7 +329,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                     // "try" ResourceSpecification Block CatchClause* Finally?
                     case "tryWithResourcesStmt": {
                         TryStatement tryStatement = ast.newTryStatement();
-//                        tryStatement.resources().addAll(createList(ctx.resourceSpecification().resources().resource()));
+                        tryStatement.resources().addAll(createList(node.childAt(1).childAt(0).getChildrenWithName("Resource")));
                         tryStatement.setBody((Block) node.getChildWithName("Block").accept(this));
                         tryStatement.catchClauses().addAll(createList(node.getChildWithName("CatchClause*").children()));
 
@@ -435,17 +435,29 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 return null;
             }
 
+            // VariableModifier* ReferenceType VariableDeclaratorId "=" Expression
+            case "Resource": {
+                VariableDeclarationFragment variableDeclarationFragment = ast.newVariableDeclarationFragment();
+                variableDeclarationFragment.setName(ast.newSimpleName(node.getChildWithName("VariableDeclaratorId").childAt(0).getText(input)));
+                variableDeclarationFragment.setInitializer((Expression) node.getChildWithName("Expression").accept(this));
+
+                VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(variableDeclarationFragment);
+                variableDeclarationExpression.modifiers().addAll(createList(node.getChildrenWithName("VariableModifier*")));
+                variableDeclarationExpression.setType((Type) node.getChildWithName("ReferenceType").accept(this));
+                return variableDeclarationExpression;
+            }
+
             /*
              * SwitchLabel
-             *   : "case" ConstantExpression ":"
+             *   : "case" Expression ":"
              *   | "default" ":"
              */
             // TODO: after flattening constant expression, update this one
             case "SwitchLabel": {
                 SwitchCase switchCase = ast.newSwitchCase();
                 switchCase.setExpression(null); // default case
-                if (node.hasChild("ConstantExpression")) {
-                    switchCase.setExpression((Expression) node.getChildWithName("ConstantExpression").childAt(0).accept(this));
+                if (node.hasChild("Expression")) {
+                    switchCase.setExpression((Expression) node.getChildWithName("Expression").accept(this));
                 }
                 return switchCase;
             }
@@ -554,14 +566,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         return conditionalExpression;
                     }
 
-                    // TODO: rename brackets to parExpr
-                    // "(" Expression ")"
-                    case "brackets": {
-                        ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
-                        parenthesizedExpression.setExpression((Expression) node.getChildWithName("Expression").accept(this));
-                        return parenthesizedExpression;
-                    }
-
                     // TODO: rename ao to assignmentExpr
                     // Expression AssignmentOperator Expression
                     case "ao": {
@@ -578,10 +582,20 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             }
 
             case "Primary": {
-                if (node.hasChild("Literal")) {
-                    return node.getChildWithName("Literal").accept(this);
+                switch (node.getGrammarDefinition().getLabel()) {
+                    case "literalPrimary": {
+                        return node.getChildWithName("Literal").accept(this);
+                    }
+
+                    case "parExprPrimary": {
+                        ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
+                        parenthesizedExpression.setExpression((Expression) node.getChildWithName("Expression").accept(this));
+                        return parenthesizedExpression;
+                    }
+
+                    default:
+                        return ast.newNumberLiteral("1");
                 }
-                return ast.newNumberLiteral("1");
             }
 
             case "IntegerLiteral":
@@ -763,9 +777,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
 
     @Override
     public ASTNode visit(AmbiguityNode ambiguityNode) {
-        // TODO: throw an exception here
-        return ambiguityNode.childAt(0).accept(this);
-//        throw new RuntimeException("Ambiguity");
+        throw new RuntimeException("Ambiguity");
     }
 
     @Override

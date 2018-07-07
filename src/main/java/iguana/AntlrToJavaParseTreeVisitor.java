@@ -929,6 +929,7 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
     @Override
     public VariableDeclarationExpression visitResource(JavaParser.ResourceContext ctx) {
         VariableDeclarationFragment variableDeclarationFragment = ast.newVariableDeclarationFragment();
+        // TODO: do we need to convert dimensions as well?
         variableDeclarationFragment.setName(ast.newSimpleName(ctx.variableDeclaratorId().IDENTIFIER().getText()));
         variableDeclarationFragment.setInitializer((Expression) ctx.expression().accept(this));
         VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(variableDeclarationFragment);
