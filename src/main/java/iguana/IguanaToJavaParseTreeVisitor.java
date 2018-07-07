@@ -1,6 +1,7 @@
 package iguana;
 
 
+import antlr4java.JavaParser;
 import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.*;
 import org.iguana.parsetree.*;
@@ -494,27 +495,26 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
             }
 
             case "Expression": {
+                // Infix expression
                 if (node.getGrammarDefinition().getLabel() == null) {
-                    return ast.newNumberLiteral("1");
+                    InfixExpression infixExpression = ast.newInfixExpression();
+                    infixExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
+                    infixExpression.setRightOperand((Expression) node.childAt(2).accept(this));
+                    infixExpression.setOperator(InfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
+                    return infixExpression;
                 }
-                switch (node.getGrammarDefinition().getLabel()) {
-                    case "primary": {
-                        return node.childAt(0).accept(this);
-                    }
 
-                    // TODO: Complete after making the first expression an identifier
-                    // Expression !brackets "(" ArgumentList? ")"
-                    case "methodCall": {
-//                        MethodInvocation methodInvocation = ast.newMethodInvocation();
-//                        methodInvocation.setName(getIdentifier());
-//                        if (ctx.expressionList() != null) {
-//                            methodInvocation.arguments().addAll(createList(ctx.expressionList().expression()));
-//                        }
-//                        return methodInvocation;
+                switch (node.getGrammarDefinition().getLabel()) {
+
+                    case "fieldAccess": {
                         return ast.newNumberLiteral("1");
                     }
 
-                    // TODO: update this after giving them label
+                    // MethodInvocation
+                    case "methodCall": {
+                        return node.childAt(0).accept(this);
+                    }
+
                     // Expression "[" Expression "]"
                     case "arrayAccess": {
                         ArrayAccess arrayAccess = ast.newArrayAccess();
@@ -531,8 +531,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         return postfixExpression;
                     }
 
-                    // TODO: fix it
-                    case "unaryPlusMinus":
                     case "prefix": {
                         PrefixExpression prefixExpression = ast.newPrefixExpression();
                         prefixExpression.setOperand((Expression) node.getChildWithName("Expression").accept(this));
@@ -540,9 +538,12 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         return prefixExpression;
                     }
 
+                    case "newClass": {
+                        return ast.newNumberLiteral("1");
+                    }
+
                     // "(" Type ")" Expression
-                    // TODO: Rename to case expression
-                    case "caseExpr": {
+                    case "castExpr": {
                         CastExpression castExpression = ast.newCastExpression();
                         castExpression.setType((Type) node.getChildWithName("Type").accept(this));
                         castExpression.setExpression((Expression) node.getChildWithName("Expresssion").accept(this));
@@ -566,9 +567,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         return conditionalExpression;
                     }
 
-                    // TODO: rename ao to assignmentExpr
                     // Expression AssignmentOperator Expression
-                    case "ao": {
+                    case "assignmentExpr": {
                         Assignment assignment = ast.newAssignment();
                         assignment.setLeftHandSide((Expression) node.childAt(0).accept(this));
                         assignment.setRightHandSide((Expression) node.childAt(2).accept(this));
@@ -576,8 +576,12 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         return assignment;
                     }
 
-                    default:
-                        return ast.newNumberLiteral("1");
+                    case "primaryExpr": {
+                        return node.childAt(0).accept(this);
+                    }
+
+                    // Expression op Expression
+                    default: throw new RuntimeException("Unexpected exception type");
                 }
             }
 
@@ -598,29 +602,41 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 }
             }
 
-            case "IntegerLiteral":
-            case "FloatingPointLiteral": {
-                return ast.newNumberLiteral(node.getText(input));
+            // Identifier Arguments
+            case "MethodInvocation": {
+                MethodInvocation methodInvocation = ast.newMethodInvocation();
+                methodInvocation.setName(getIdentifier(node.getChildWithName("Identifier")));
+                methodInvocation.arguments().addAll(getArguments(node.getChildWithName("Arguments")));
+                return methodInvocation;
             }
 
-            case "BooleanLiteral": {
-                return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText(input)));
-            }
+            case "Literal": {
+                switch (node.getGrammarDefinition().getLabel()) {
+                    case "integerLiteral":
+                    case "floatLiteral": {
+                        return ast.newNumberLiteral(node.getText(input));
+                    }
 
-            case "CharacterLiteral": {
-                CharacterLiteral characterLiteral = ast.newCharacterLiteral();
-                characterLiteral.setEscapedValue(node.getText(input));
-                return characterLiteral;
-            }
+                    case "booleanLiteral": {
+                        return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText(input)));
+                    }
 
-            case "StringLiteral": {
-                StringLiteral stringLiteral = ast.newStringLiteral();
-                stringLiteral.setEscapedValue(node.getText(input));
-                return stringLiteral;
-            }
+                    case "characterLiteral": {
+                        CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+                        characterLiteral.setEscapedValue(node.getText(input));
+                        return characterLiteral;
+                    }
 
-            case "NullLiteral": {
-                return ast.newNullLiteral();
+                    case "stringLiteral": {
+                        StringLiteral stringLiteral = ast.newStringLiteral();
+                        stringLiteral.setEscapedValue(node.getText(input));
+                        return stringLiteral;
+                    }
+
+                    case "nullLiteral": {
+                        return ast.newNullLiteral();
+                    }
+                }
             }
 
             // ConstructorDeclaration: ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? Block
@@ -915,4 +931,10 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     private boolean isOptionNotEmpty(ParseTreeNode node) {
         return node.children().size() > 0;
     }
+
+    // Arguments: "(" { Expression "," }* ")"
+    private List<Expression> getArguments(ParseTreeNode node) {
+        return createList(node.childAt(1).getChildrenWithName("Expression"), Expression.class);
+    }
+
 }
