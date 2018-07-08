@@ -64,7 +64,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                 if (isOptionNotEmpty(node.getChildWithName("TypeParameters?"))) {
                     classDeclaration.typeParameters().addAll(getTypeParameters(node.getChildWithName("TypeParameters?").childAt(0)));
                 }
-                classDeclaration.bodyDeclarations().addAll(createList(node.getChildWithName("ClassBody").childAt(1).children()));
+                classDeclaration.bodyDeclarations().addAll(getBodyDeclarations(node.getChildWithName("ClassBody")));
 
                 ParseTreeNode extendsNode = node.childAt(4);
                 if (isOptionNotEmpty(extendsNode)) { // ("extends" Type)?
@@ -538,8 +538,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                         return prefixExpression;
                     }
 
+                    // "new" (ClassInstanceCreationExpression | ArrayCreationExpression)
                     case "newClass": {
-                        return ast.newNumberLiteral("1");
+                        return node.childAt(1).accept(this);
                     }
 
                     // "(" Type ")" Expression
@@ -583,6 +584,49 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
                     // Expression op Expression
                     default: throw new RuntimeException("Unexpected exception type");
                 }
+            }
+
+            // TypeArguments? TypeDeclSpecifier TypeArgumentsOrDiamond? Arguments ClassBody?
+            case "ClassInstanceCreationExpression": {
+                ClassInstanceCreation classInstanceCreation = ast.newClassInstanceCreation();
+
+                if (isOptionNotEmpty(node.getChildWithName("TypeArgumentsOrDiamond?"))) {
+                    classInstanceCreation.typeArguments().addAll(getTypeArgumentsOrDiamond(node.getChildWithName("TypeArgumentsOrDiamond?").childAt(0)));
+                }
+                classInstanceCreation.setType((Type) getParametrizedType(node.getChildWithName("TypeDeclSpecifier")));
+                classInstanceCreation.arguments().addAll(getArguments(node.getChildWithName("Arguments")));
+                if (isOptionNotEmpty(node.getChildWithName("ClassBody?"))) {
+                    AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
+                    anonymousClassDeclaration.bodyDeclarations().addAll(getBodyDeclarations(node.getChildWithName("ClassBody?").childAt(0)));
+                    classInstanceCreation.setAnonymousClassDeclaration(anonymousClassDeclaration);
+                }
+                return classInstanceCreation;
+            }
+
+            /*
+             * ArrayCreationExpression
+             *   = (PrimitiveType | ReferenceType) "[" Expression "]" ("[" "]")*
+             *   | (PrimitiveType | ReferenceTypeNonArrayType) ("[" "]")+ ArrayInitializer
+             */
+            case "ArrayCreationExpression": {
+                ArrayCreation arrayCreation = ast.newArrayCreation();
+                if (node.hasChild("ArrayInitializer")) { // Second alternative
+                    int dimensions = getDimensionsSize(node.childAt(2));
+                    arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
+                    arrayCreation.setInitializer((ArrayInitializer) node.getChildWithName("ArrayInitializer").accept(this));
+                } else {
+                    int dimensions = getDimensionsSize(node.childAt(1));
+                    arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
+                    arrayCreation.dimensions().addAll(createList(node.childAt(1).getChildrenWithName("Expression")));
+                }
+                return arrayCreation;
+            }
+
+            // "{"  {VariableInitializer ","}* ","? "}"
+            case "ArrayInitializer": {
+                ArrayInitializer arrayInitializer = ast.newArrayInitializer();
+                arrayInitializer.expressions().addAll(createList(node.childAt(1).getChildrenWithName("VariableInitializer")));
+                return arrayInitializer;
             }
 
             case "Primary": {
@@ -853,6 +897,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     private List<VariableDeclarationFragment> getVariableDeclarationFragments(ParseTreeNode node) {
         List<ParseTreeNode> variableDeclaratorNodes = node.getChildrenWithName("VariableDeclarator");
         List<VariableDeclarationFragment> fragments = new ArrayList<>();
+
         // VariableDeclarator: VariableDeclaratorId ("=" VariableInitializer)?
         for (ParseTreeNode variableDeclaratorNode : variableDeclaratorNodes) {
             VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
@@ -882,6 +927,13 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
         return formalParameters;
     }
 
+    // Return an empty list for diamond operator
+    private List<Type> getTypeArgumentsOrDiamond(ParseTreeNode node) {
+        if (node.childAt(0).getName().equals("TypeArguments")) {
+            return getTypeArguments(node.childAt(0));
+        }
+        return emptyList();
+    }
 
     // TypeArguments: '<' {TypeArgument ","}+ '>'
     private List<Type> getTypeArguments(ParseTreeNode node) {
@@ -926,6 +978,30 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<ASTNode> {
     private List<Dimension> getDimensions(ParseTreeNode node) {
         if (node == null) return emptyList();
         return IntStream.range(0, getDimensionsSize(node)).mapToObj(i -> ast.newDimension()).collect(toList());
+    }
+
+    // TypeDeclSpecifier: Identifier (TypeArguments? "." Identifier)*
+    private Type getParametrizedType(ParseTreeNode node) {
+        Type type = ast.newSimpleType(getIdentifier(node.getChildWithName("Identifier")));
+
+        int i = 0;
+        while (i < node.childAt(1).children().size()) {
+            if (isOptionNotEmpty(node.childAt(i))) { // TypeArguments?
+                type = ast.newParameterizedType(type);
+                ((ParameterizedType) type).typeArguments().addAll(getTypeArguments(node.childAt(i).childAt(0)));
+            }
+            i += 2;
+            type = ast.newQualifiedType(type, getIdentifier(node.childAt(i)));
+        }
+
+        return type;
+    }
+
+    // ClassBody: "{" ClassBodyDeclaration* "}"
+    private List<BodyDeclaration> getBodyDeclarations(ParseTreeNode node) {
+        List<BodyDeclaration> bodyDeclarations = new ArrayList<>();
+        bodyDeclarations.addAll(createList(node.getChildWithName("ClassBodyDeclaration*").children(), BodyDeclaration.class));
+        return bodyDeclarations;
     }
 
     private boolean isOptionNotEmpty(ParseTreeNode node) {
