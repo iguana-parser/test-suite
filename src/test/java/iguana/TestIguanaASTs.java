@@ -83,7 +83,7 @@ class TestIguanaASTs {
         Set<Symbol> ignoreSet = new HashSet<>();
         ignoreSet.add(grammar.getLayout());
         ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
-        ASTNode astNode = parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+        ASTNode astNode = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
         System.out.println(astNode);
     }
 
