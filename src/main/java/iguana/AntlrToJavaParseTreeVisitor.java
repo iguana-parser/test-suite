@@ -1095,6 +1095,7 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
                 classInstanceCreation.setAnonymousClassDeclaration(anonymousClassDeclaration);
             }
 
+            // TODO: what about nonWildcardTypeArguments? add parametrized types
             classInstanceCreation.setExpression((Expression) ctx.expression().accept(this));
             classInstanceCreation.setType(ast.newSimpleType(getIdentifier(ctx.innerCreator().IDENTIFIER())));
             classInstanceCreation.arguments().addAll(getArguments(ctx.innerCreator().classCreatorRest().arguments()));

@@ -2,6 +2,8 @@ package iguana;
 
 import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.iguana.grammar.Grammar;
 import org.iguana.grammar.GrammarGraph;
 import org.iguana.grammar.symbol.Nonterminal;
@@ -83,8 +85,13 @@ class TestIguanaASTs {
         Set<Symbol> ignoreSet = new HashSet<>();
         ignoreSet.add(grammar.getLayout());
         ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
-        ASTNode astNode = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
-        System.out.println(astNode);
+        ASTNode iguanaASTNode = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+
+        ASTParser astParser = newASTParser(inputContent);
+        CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
+
+        writeContentToFile(iguanaASTNode.toString(), "/Users/afroozeh/Desktop/1.txt");
+        writeContentToFile(eclipseJDTResult.toString(), "/Users/afroozeh/Desktop/2.txt");
     }
 
 }
