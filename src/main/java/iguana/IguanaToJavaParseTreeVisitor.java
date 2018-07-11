@@ -1,6 +1,7 @@
 package iguana;
 
 import iguana.utils.input.Input;
+import org.apache.commons.math3.analysis.function.Exp;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.Block;
 import org.iguana.grammar.symbol.*;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
 public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
@@ -256,11 +258,15 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 return block;
             }
 
-            case "BlockStatement": {
-                if (node.getGrammarDefinition().getLabel() != null) { // localVariableDeclaration
-                    return getLocalVariableDeclarationStatement(node.childAt(0));
+            case "LocalVariableDeclarationStatement": {
+                List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
+                VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragments.get(0));
+                for (int i = 1; i < fragments.size(); i++) {
+                    variableDeclarationStatement.fragments().add(fragments.get(i));
                 }
-                return node.childAt(0).accept(this);
+                variableDeclarationStatement.setType((Type) node.getChildWithName("Type").accept(this));
+                variableDeclarationStatement.modifiers().addAll(getModifiers(node.getChildWithName("VariableModifier*")));
+                return variableDeclarationStatement;
             }
 
             case "Statement": {
@@ -424,41 +430,35 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                         return whileStatement;
                     }
 
+                    // "for" "(" ForControl ")" Statement
                     case "forStmt": {
                         ParseTreeNode forControlNode = node.getChildWithName("ForControl");
-                        switch (((Rule) forControlNode.getGrammarDefinition()).getLabel()) {
 
+                        switch (((Rule) forControlNode.getGrammarDefinition()).getLabel()) {
                             // ForInit? ";" Expression? ";" ForUpdate?
                             case "traditionalFor": {
                                 ForStatement forStatement = ast.newForStatement();
-//
-//                                ParseTreeNode forInit = forControlNode.getChildWithName("ForInit?");
-//                                if (isOptionNotEmpty(forInit)) {
-//                                    if (forInit.hasChild("LocalVariableDeclaration")) {
-//                                        ParseTreeNode localVariableDeclarationNode = forInit.getChildWithName("LocalVariableDeclaration");
-//                                        List<VariableDeclarationFragment> fragments = getVariableDeclarationFragments(localVariableDeclarationContext.variableDeclarators());
-//                                        VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragments.get(0));
-//                                        variableDeclarationExpression.fragments().addAll(fragments.subList(1, fragments.size()));
-//                                        variableDeclarationExpression.modifiers().addAll(createList(localVariableDeclarationContext.variableModifier()));
-//                                        variableDeclarationExpression.setType((Type) localVariableDeclarationContext.typeType().accept(this));
-//
-//                                        forStatement.initializers().add(variableDeclarationExpression);
-//                                    } else {
-//                                        forStatement.initializers().addAll(createList(ctx.forControl().forInit().expressionList().expression()));
-//                                    }
-//                                }
-//
-//                                if (isOptionNotEmpty(forControlNode.getChildWithName("Expression?"))) {
-//                                    forStatement.setExpression((Expression) ctx.forControl().expression().accept(this));
-//                                }
-//
-//                                if (isOptionNotEmpty(forControlNode.getChildWithName("ForUpdate?"))) {
-//                                    forStatement.updaters().addAll(createList(ctx.forControl().forUpdate.expression()));
-//                                }
-//
-//                                Statement statement = (Statement) ctx.statement().accept(this);
-//                                if (statement != null) forStatement.setBody(statement);
-//
+
+                                List<Expression> forInit = (List<Expression>) forControlNode.getChildWithName("ForInit?").accept(this);
+                                if (forInit != null) {
+                                    forStatement.initializers().addAll(forInit);
+                                }
+
+                                Expression expression = (Expression) forControlNode.getChildWithName("Expression?").accept(this);
+                                if (expression != null) {
+                                    forStatement.setExpression(expression);
+                                }
+
+                                List<Expression> forUpdate = (List<Expression>) forControlNode.getChildWithName("ForUpdate?").accept(this);
+                                if (forUpdate != null) {
+                                    forStatement.updaters().addAll(forUpdate);
+                                }
+
+                                Statement statement = (Statement) node.getChildWithName("Statement").accept(this);
+                                if (statement != null) {
+                                    forStatement.setBody(statement);
+                                }
+
                                 return forStatement;
                             }
 
@@ -476,7 +476,25 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                         }
                     }
                 }
-                return null;
+            }
+
+            case "ForInit": {
+                switch (node.getGrammarDefinition().getLabel()) {
+
+                    // {Expression ","}+
+                    case "expressions": {
+                        return node.childAt(0).accept(this);
+                    }
+
+                    // Type {VariableDeclarator ","}+
+                    case "variableDecl": {
+                        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(1).accept(this);
+                        VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragments.get(0));
+                        variableDeclarationExpression.fragments().addAll(fragments.subList(1, fragments.size()));
+                        variableDeclarationExpression.setType((Type) node.getChildWithName("Type").accept(this));
+                        return singletonList(variableDeclarationExpression);
+                    }
+                }
             }
 
             // VariableModifier* ReferenceType VariableDeclaratorId "=" Expression
@@ -626,7 +644,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     }
 
                     // Expression op Expression
-                    default: throw new RuntimeException("Unexpected exception type");
+                    default:
+                        throw new RuntimeException("Unexpected exception type");
                 }
             }
 
@@ -668,8 +687,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     if (node instanceof List) {
                         type = ast.newParameterizedType(type);
                         ((ParameterizedType) type).typeArguments().addAll((List<Type>) n);
-                    }
-                    else { // Identifier
+                    } else { // Identifier
                         type = ast.newQualifiedType(type, (SimpleName) n);
                     }
                 }
@@ -1030,11 +1048,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 }
             }
             return result;
-        }
-        else if (definition instanceof Alt) {
+        } else if (definition instanceof Alt) {
             return node.childAt(0).accept(this);
-        }
-        else { // Opt
+        } else { // Opt
             if (node.children().size() == 0) {
                 return null;
             }
@@ -1162,34 +1178,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 return classInstanceCreation;
             }
 
-            case "genericSelector": {
-            }
-
             default:
                 throw new RuntimeException("Unknown Selector: " + node);
         }
     }
-
-    // LocalVariableDeclaration: VariableModifier* Type {VariableDeclarator ","}+
-    private VariableDeclarationStatement getLocalVariableDeclarationStatement(ParseTreeNode node) {
-        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
-        VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragments.get(0));
-        for (int i = 1; i < fragments.size(); i++) {
-            variableDeclarationStatement.fragments().add(fragments.get(i));
-        }
-        variableDeclarationStatement.setType((Type) node.getChildWithName("Type").accept(this));
-        variableDeclarationStatement.modifiers().addAll(getModifiers(node.getChildWithName("VariableModifier*")));
-        return variableDeclarationStatement;
-    }
-
-    // LocalVariableDeclaration: VariableModifier* Type {VariableDeclarator ","}+
-    private VariableDeclarationExpression getLocalVariableDeclarationExpression(ParseTreeNode node) {
-        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
-        VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragments.get(0));
-        variableDeclarationExpression.fragments().addAll(fragments.subList(1, fragments.size()));
-        variableDeclarationExpression.setType((Type) node.getChildWithName("Type").accept(this));
-        variableDeclarationExpression.modifiers().addAll(getModifiers(node.getChildWithName("VariableModifier*")));
-        return variableDeclarationExpression;
-    }
-
 }
