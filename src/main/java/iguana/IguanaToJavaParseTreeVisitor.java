@@ -287,9 +287,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                         AssertStatement assertStatement = ast.newAssertStatement();
                         assertStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
 
-                        Expression message = (Expression) node.childAt(1).accept(this);
+                        List<Expression> message = (List<Expression>) node.childAt(2).accept(this);
                         if (message != null) {
-                            assertStatement.setMessage(message);
+                            assertStatement.setMessage(message.get(0));
                         }
                         return assertStatement;
                     }
@@ -361,15 +361,18 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
                     // "try" Block (CatchClause+ | (CatchClause* Finally))
                     case "tryStmt": {
-                        // TODO: complete after removing superfluous grouping
                         TryStatement tryStatement = ast.newTryStatement();
                         tryStatement.setBody((Block) node.getChildWithName("Block").accept(this));
 
-//                        tryStatement.catchClauses().addAll(createList(ctx.catchClause()));
-//
-//                        if (ctx.finallyBlock() != null) {
-//                            tryStatement.setFinally((Block) ctx.finallyBlock().accept(this));
-//                        }
+                        List<Object> catchFinally = (List<Object>) node.childAt(2).accept(this);
+
+                        if (catchFinally.get(catchFinally.size() - 1) instanceof Block) {
+                            tryStatement.catchClauses().addAll(catchFinally.subList(0, catchFinally.size() - 1));
+                            tryStatement.setFinally((Block) catchFinally.get(catchFinally.size() - 1));
+                        } else {
+                            tryStatement.catchClauses().addAll(catchFinally);
+                        }
+
                         return tryStatement;
                     }
 
@@ -839,7 +842,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 }
             }
 
-            // ConstructorDeclaration: ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? Block
+            // ConstructorDeclaration: ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? ConstructorBody
             case "ConstructorDeclaration": {
                 MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
                 constructorDeclaration.setConstructor(true);
@@ -860,7 +863,56 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 if (exceptionTypes != null) {
                     constructorDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
                 }
+
+                constructorDeclaration.setBody((Block) node.getChildWithName("ConstructorBody").accept(this));
+
                 return constructorDeclaration;
+            }
+
+            // "{" ExplicitConstructorInvocation? BlockStatement* "}"
+            case "ConstructorBody": {
+                Block block = ast.newBlock();
+                List<Statement> statements = new ArrayList<>();
+                Statement explicitConstructorInvocation = (Statement) node.childAt(1).accept(this);
+                if (explicitConstructorInvocation != null) {
+                    statements.add(explicitConstructorInvocation);
+                }
+                statements.addAll((List<Statement>) node.childAt(2).accept(this));
+                block.statements().addAll(statements);
+                return block;
+            }
+
+            case "ExplicitConstructorInvocation": {
+                switch (node.getGrammarDefinition().getLabel()) {
+
+                    // NonWildTypeArguments? "this" Arguments ";"
+                    case "constructorInvocation": {
+                        ConstructorInvocation constructorInvocation = ast.newConstructorInvocation();
+                        List<Type> typeArguments = (List<Type>) node.getChildWithName("NonWildTypeArguments?").accept(this);
+                        if (typeArguments != null) {
+                            constructorInvocation.typeArguments().addAll(typeArguments);
+                        }
+
+                        constructorInvocation.arguments().addAll((List<Expression>) node.getChildWithName("Arguments").accept(this));
+                        return constructorInvocation;
+                    }
+
+                    // (Primary ".")? NonWildTypeArguments? "super" Arguments ";"
+                    case "superConstructorInvocation": {
+                        SuperConstructorInvocation superConstructorInvocation = ast.newSuperConstructorInvocation();
+                        List<Type> typeArguments = (List<Type>) node.getChildWithName("NonWildTypeArguments?").accept(this);
+                        if (typeArguments != null) {
+                            superConstructorInvocation.typeArguments().addAll(typeArguments);
+                        }
+                        List<Expression> expression = (List<Expression>) node.childAt(0).accept(this);
+                        if (expression != null) {
+                            superConstructorInvocation.setExpression(expression.get(0));
+                        }
+
+                        superConstructorInvocation.arguments().addAll((List<Expression>) node.getChildWithName("Arguments").accept(this));
+                        return superConstructorInvocation;
+                    }
+                }
             }
 
             // Initializer: "static"? Block
