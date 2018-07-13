@@ -555,7 +555,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
             // Finally: "finally" Block
             case "Finally": {
-                return (Block) node.getChildWithName("Block").accept(this);
+                return node.getChildWithName("Block").accept(this);
             }
 
             case "Expression": {
@@ -733,9 +733,10 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
                     arrayCreation.setInitializer((ArrayInitializer) node.getChildWithName("ArrayInitializer").accept(this));
                 } else {
-                    int dimensions = getDimensionsSize(node.childAt(1));
+                    List<Expression> expressions = (List<Expression>) node.childAt(1).accept(this);
+                    int dimensions = getDimensionsSize(node.childAt(2)) + expressions.size();
                     arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
-                    arrayCreation.dimensions().addAll((List<Expression>) node.childAt(1).accept(this));
+                    arrayCreation.dimensions().addAll(expressions);
                 }
                 return arrayCreation;
             }
@@ -793,6 +794,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 }
             }
 
+            // "." NonWildTypeArguments? Identifier Arguments?
             case "SuperSuffix": {
                 List<Expression> arguments = (List<Expression>) node.getChildWithName("Arguments?").accept(this);
                 if (arguments != null) {
@@ -955,7 +957,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 Type type = (Type) node.childAt(0).accept(this);
                 int dimensions = getDimensionsSize(node.childAt(1));
                 if (dimensions > 0) {
-                    return ast.newArrayType(type, dimensions);
+                    ArrayType arrayType = ast.newArrayType(type, dimensions);
+                    return arrayType;
                 }
                 return type;
             }
@@ -1134,7 +1137,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private SimpleName getIdentifier(ParseTreeNode node) {
-        return (SimpleName) ast.newSimpleName(node.getText(input));
+        return ast.newSimpleName(node.getText(input));
     }
 
     private List<IExtendedModifier> getModifiers(ParseTreeNode node) {
@@ -1155,7 +1158,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         if (node.children().size() == 0) {
             return 0;
         }
-        return node.childAt(0).children().size() / 2;
+        return node.children().size();
     }
 
     private List<Dimension> getDimensions(ParseTreeNode node) {

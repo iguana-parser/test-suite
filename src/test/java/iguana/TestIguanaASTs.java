@@ -90,6 +90,7 @@ class TestIguanaASTs {
         ASTParser astParser = newASTParser(inputContent);
         CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
+        System.out.println(iguanaASTNode);
         writeContentToFile(iguanaASTNode.toString(), "/Users/afroozeh/Desktop/1.txt");
         writeContentToFile(eclipseJDTResult.toString(), "/Users/afroozeh/Desktop/2.txt");
     }
