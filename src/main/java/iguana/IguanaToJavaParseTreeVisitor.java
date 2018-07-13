@@ -1,7 +1,6 @@
 package iguana;
 
 import iguana.utils.input.Input;
-import org.apache.commons.math3.analysis.function.Exp;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.Block;
 import org.iguana.grammar.symbol.*;
@@ -91,12 +90,13 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     enumDeclaration.superInterfaceTypes().addAll(typeList);
                 }
 
+                // "{" {EnumConstant ","}* ","? EnumBodyDeclarations? "}"
                 List<BodyDeclaration> enumConstants = (List<BodyDeclaration>) node.getChildWithName("EnumBody").childAt(1).accept(this);
                 enumDeclaration.enumConstants().addAll(enumConstants);
 
-                List<BodyDeclaration> enumBodyDeclararions = (List<BodyDeclaration>) node.getChildWithName("EnumBody").childAt(3).accept(this);
-                if (enumBodyDeclararions != null) {
-                    enumDeclaration.bodyDeclarations().addAll(enumBodyDeclararions);
+                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.getChildWithName("EnumBody").childAt(3).accept(this);
+                if (bodyDeclarations != null) {
+                    enumDeclaration.bodyDeclarations().addAll(bodyDeclarations);
                 }
 
                 return enumDeclaration;
@@ -107,20 +107,21 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 EnumConstantDeclaration enumConstantDeclaration = ast.newEnumConstantDeclaration();
 
                 enumConstantDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("Annotation*")));
-                enumConstantDeclaration.setName((SimpleName) node.childAt(1).accept(this));
+                enumConstantDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
 
-//                if (isOptionNotEmpty(node.childAt(2))) {
-//                    enumConstantDeclaration.arguments().addAll(getArguments(ctx.arguments()));
-//                }
-//
-//                if (isOptionNotEmpty(node.childAt(3))) {
-//                    AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
-//                    anonymousClassDeclaration.bodyDeclarations().addAll(createList(ctx.classBody().classBodyDeclaration()));
-//                    enumConstantDeclaration.setAnonymousClassDeclaration(anonymousClassDeclaration);
-//                }
+                List<Expression> arguments = (List<Expression>) node.getChildWithName("Arguments?").accept(this);
+                if (arguments != null) {
+                    enumConstantDeclaration.arguments().addAll(arguments);
+                }
+
+                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.getChildWithName("ClassBody?").accept(this);
+                if (bodyDeclarations != null) {
+                    AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
+                    anonymousClassDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+                    enumConstantDeclaration.setAnonymousClassDeclaration(anonymousClassDeclaration);
+                }
 
                 return enumConstantDeclaration;
-
             }
 
             case "NormalInterfaceDeclaration": {
