@@ -3,6 +3,7 @@ package iguana;
 import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jface.text.projection.Fragment;
 import org.iguana.grammar.symbol.*;
 import org.iguana.parsetree.*;
 
@@ -137,8 +138,53 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 AnnotationTypeDeclaration annotationTypeDeclaration = ast.newAnnotationTypeDeclaration();
                 annotationTypeDeclaration.setName((SimpleName) node.getChildWithName("Identifier").accept(this));
                 annotationTypeDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("InterfaceModifier*")));
-                // TODO: add annotation type bodies
+
+                annotationTypeDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.getChildWithName("AnnotationTypeBody").accept(this));
                 return annotationTypeDeclaration;
+            }
+
+            // ConstantModifier* Type {VariableDeclarator ","}+ ";"
+            case "ConstantDeclaration": {
+                List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
+                FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
+                fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
+                fieldDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("ConstantModifier*")));
+                fieldDeclaration.setType((Type) node.getChildWithName("Type").accept(this));
+                return fieldDeclaration;
+            }
+
+            // AbstractMethodModifier* Type Identifier "(" ")" ("[" "]")* DefaultValue? ";"
+            case "AnnotationMethodDeclaration": {
+                AnnotationTypeMemberDeclaration annotationTypeMemberDeclaration = ast.newAnnotationTypeMemberDeclaration();
+                annotationTypeMemberDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("AbstractMethodModifier*")));
+                annotationTypeMemberDeclaration.setType((Type) node.getChildWithName("Type").accept(this));
+                annotationTypeMemberDeclaration.setName(getIdentifier(node.getChildWithName("Identifier")));
+                Expression expression = (Expression) node.getChildWithName("DefaultValue?").accept(this);
+                annotationTypeMemberDeclaration.setDefault(expression);
+                return annotationTypeMemberDeclaration;
+            }
+
+            // "@" QualifiedIdentifier Values?
+            case "Annotation": {
+                Name name = (Name) node.getChildWithName("QualifiedIdentifier").accept(this);
+                List<Expression> expressions = (List<Expression>) node.getChildWithName("Values?").accept(this);
+                if (expressions == null) {
+                    MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
+                    markerAnnotation.setTypeName(name);
+                    return markerAnnotation;
+                }
+
+                if (expressions.size() == 1) {
+                    SingleMemberAnnotation singleMemberAnnotation = ast.newSingleMemberAnnotation();
+                    singleMemberAnnotation.setTypeName(name);
+                    singleMemberAnnotation.setValue(expressions.get(0));
+                    return singleMemberAnnotation;
+                }
+
+                NormalAnnotation normalAnnotation = ast.newNormalAnnotation();
+                normalAnnotation.setTypeName(name);
+                normalAnnotation.values().addAll(expressions);
+                return normalAnnotation;
             }
 
             // FieldModifier* Type {VariableDeclarator ","}+ ";"
