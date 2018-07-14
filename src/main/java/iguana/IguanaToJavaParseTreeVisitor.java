@@ -167,24 +167,32 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             // "@" QualifiedIdentifier Values?
             case "Annotation": {
                 Name name = (Name) node.getChildWithName("QualifiedIdentifier").accept(this);
-                List<Expression> expressions = (List<Expression>) node.getChildWithName("Values?").accept(this);
-                if (expressions == null) {
+                List<Object> values = (List<Object>) node.getChildWithName("Values?").accept(this);
+                if (values == null) {
                     MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
                     markerAnnotation.setTypeName(name);
                     return markerAnnotation;
                 }
 
-                if (expressions.size() == 1) {
+                if (values.size() == 1) {
                     SingleMemberAnnotation singleMemberAnnotation = ast.newSingleMemberAnnotation();
                     singleMemberAnnotation.setTypeName(name);
-                    singleMemberAnnotation.setValue(expressions.get(0));
+                    singleMemberAnnotation.setValue((Expression) values.get(0));
                     return singleMemberAnnotation;
                 }
 
                 NormalAnnotation normalAnnotation = ast.newNormalAnnotation();
                 normalAnnotation.setTypeName(name);
-                normalAnnotation.values().addAll(expressions);
+                normalAnnotation.values().addAll(values);
                 return normalAnnotation;
+            }
+
+            // Identifier "=" ElementValue
+            case "ElementValuePair": {
+                MemberValuePair memberValuePair = ast.newMemberValuePair();
+                memberValuePair.setName(getIdentifier(node.getChildWithName("Identifier")));
+                memberValuePair.setValue((Expression) node.getChildWithName("ElementValue").accept(this));
+                return memberValuePair;
             }
 
             // FieldModifier* Type {VariableDeclarator ","}+ ";"
@@ -1089,7 +1097,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             case "ConstructorModifier":
             case "ClassModifier": {
                 if (node.hasChild("Annotation")) {
-                    return null;
+                    return node.childAt(0).accept(this);
                 } else {
                     return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
                 }
