@@ -85,14 +85,11 @@ class TestIguanaASTs {
         Set<Symbol> ignoreSet = new HashSet<>();
         ignoreSet.add(grammar.getLayout());
         ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
-        ASTNode iguanaASTNode = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+        ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
 
         ASTParser astParser = newASTParser(inputContent);
         CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
-        System.out.println(iguanaASTNode);
-        writeContentToFile(iguanaASTNode.toString(), "/Users/afroozeh/Desktop/1.txt");
-        writeContentToFile(eclipseJDTResult.toString(), "/Users/afroozeh/Desktop/2.txt");
+        assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
     }
-
 }

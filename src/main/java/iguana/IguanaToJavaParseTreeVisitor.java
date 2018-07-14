@@ -71,12 +71,19 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 if (typeParameters != null) {
                     classDeclaration.typeParameters().addAll(typeParameters);
                 }
-                classDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.getChildWithName("ClassBody").accept(this));
 
                 List<Type> type = (List<Type>) node.childAt(4).accept(this);
                 if (type != null) { // ("extends" Type)?
                     classDeclaration.setSuperclassType(type.get(0));
                 }
+
+                List<Type> superInterfaces = (List<Type>) node.childAt(5).accept(this);
+                if (superInterfaces != null) {
+                    classDeclaration.superInterfaceTypes().addAll(superInterfaces);
+                }
+
+                classDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.getChildWithName("ClassBody").accept(this));
+
                 return classDeclaration;
             }
 
@@ -125,12 +132,58 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 return enumConstantDeclaration;
             }
 
+            // InterfaceModifier* "interface" Identifier TypeParameters? ("extends" TypeList)? InterfaceBody
             case "NormalInterfaceDeclaration": {
                 TypeDeclaration interfaceDeclaration = ast.newTypeDeclaration();
                 interfaceDeclaration.setInterface(true);
-                interfaceDeclaration.setName((SimpleName) node.getChildWithName("Identifier").accept(this));
                 interfaceDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("InterfaceModifier*")));
+                interfaceDeclaration.setName((SimpleName) node.getChildWithName("Identifier").accept(this));
+
+                List<TypeParameter> typeParameters = (List<TypeParameter>) node.getChildWithName("TypeParameters?").accept(this);
+                if (typeParameters != null) {
+                    interfaceDeclaration.typeParameters().addAll(typeParameters);
+                }
+
+                List<Type> superInterfaces = (List<Type>) node.childAt(4).accept(this);
+                if (superInterfaces != null) {
+                    interfaceDeclaration.superInterfaceTypes().addAll(superInterfaces);
+                }
+
+                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.getChildWithName("InterfaceBody").accept(this);
+                interfaceDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+
                 return interfaceDeclaration;
+            }
+
+            // AbstractMethodModifier* TypeParameters? Result MethodDeclarator Throws? ";"
+            case "AbstractMethodDeclaration": {
+                MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
+                methodDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("AbstractMethodModifier*")));
+
+                List<TypeParameter> typeParameters = (List<TypeParameter>) node.getChildWithName("TypeParameters?").accept(this);
+                if (typeParameters != null) {
+                    methodDeclaration.typeParameters().addAll(typeParameters);
+                }
+
+                Type returnType = (Type) node.getChildWithName("Result").accept(this);
+                methodDeclaration.setReturnType2(returnType);
+
+                ParseTreeNode methodDeclarator = node.getChildWithName("MethodDeclarator");
+                methodDeclaration.setName((SimpleName) methodDeclarator.getChildWithName("Identifier").accept(this));
+
+                List<SingleVariableDeclaration> parameters = (List<SingleVariableDeclaration>) methodDeclarator.getChildWithName("FormalParameterList?").accept(this);
+                if (parameters != null) {
+                    methodDeclaration.parameters().addAll(parameters);
+                }
+
+                methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(4)));
+
+                List<Type> exceptionTypes = (List<Type>) node.getChildWithName("Throws?").accept(this);
+                if (exceptionTypes != null) {
+                    methodDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
+                }
+
+                return methodDeclaration;
             }
 
             // InterfaceModifier* "@" "interface" Identifier AnnotationTypeBody
@@ -199,6 +252,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             case "FieldDeclaration": {
                 List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
                 FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
+                fieldDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("FieldModifier*")));
                 fieldDeclaration.setType((Type) node.getChildWithName("Type").accept(this));
                 fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
                 return fieldDeclaration;
@@ -295,7 +349,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
             case "Result": {
                 if (node.childAt(0).getName().equals("Type")) {
-                    return (Type) node.childAt(0).accept(this);
+                    return node.childAt(0).accept(this);
                 }
                 return ast.newPrimitiveType(PrimitiveType.VOID);
             }
@@ -903,6 +957,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             case "ConstructorDeclaration": {
                 MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
                 constructorDeclaration.setConstructor(true);
+                constructorDeclaration.setReturnType2(null);
                 constructorDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("ConstructorModifier*")));
 
                 List<TypeParameter> typeParameters = (List<TypeParameter>) node.getChildWithName("TypeParameters?").accept(this);
