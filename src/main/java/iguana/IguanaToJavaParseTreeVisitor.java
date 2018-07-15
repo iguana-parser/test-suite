@@ -668,7 +668,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
             case "Expression": {
                 // Infix expression
-                if (node.getGrammarDefinition().getLabel() == null) {
+                if (node.getGrammarDefinition().getLabel() == null || node.getGrammarDefinition().getLabel().equals("comparisonExpr")) {
                     InfixExpression infixExpression = ast.newInfixExpression();
                     infixExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
                     infixExpression.setRightOperand((Expression) node.childAt(2).accept(this));
@@ -721,7 +721,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     case "castExpr": {
                         CastExpression castExpression = ast.newCastExpression();
                         castExpression.setType((Type) node.getChildWithName("Type").accept(this));
-                        castExpression.setExpression((Expression) node.getChildWithName("Expresssion").accept(this));
+                        castExpression.setExpression((Expression) node.getChildWithName("Expression").accept(this));
                         return castExpression;
                     }
 

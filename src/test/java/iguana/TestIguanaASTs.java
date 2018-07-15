@@ -64,7 +64,20 @@ class TestIguanaASTs {
         List<Path> javaFiles = getFiles(getJDK7SourceLocation(), ".java");
 
         return javaFiles.stream().map(path -> DynamicTest.dynamicTest(path.toString(), () -> {
-            ParseResult<NonPackedNode> result = Iguana.run(Input.fromString(getFileContent(path)), new ParserRuntime(Configuration.load()), grammarGraph, start, Collections.emptyMap(), true);
+            String inputContent = getFileContent(path);
+            Input input = Input.fromString(inputContent);
+            ParseResult<NonPackedNode> result = Iguana.run(input, new ParserRuntime(Configuration.load()), grammarGraph, start, Collections.emptyMap(), true);
+            assertTrue(result.isParseSuccess());
+
+            ASTParser astParser = newASTParser(inputContent);
+            CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
+
+            Set<Symbol> ignoreSet = new HashSet<>();
+            ignoreSet.add(grammar.getLayout());
+            ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
+            ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+
+            assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
             assertTrue(result.isParseSuccess());
         })).collect(toList());
     }

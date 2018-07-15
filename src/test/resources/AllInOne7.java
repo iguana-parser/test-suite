@@ -68,6 +68,9 @@ public class LexerTest {
         boolean ok = false;
         boolean not_ok = !ok;
 
+        // case operator
+        result = (Integer) x;
+
         // assignments yield a value
         (result = System.class).getName();
 
