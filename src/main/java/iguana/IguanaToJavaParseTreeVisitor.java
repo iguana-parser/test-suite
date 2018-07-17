@@ -74,14 +74,14 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     classDeclaration.typeParameters().addAll(typeParameters);
                 }
 
-                List<Type> type = (List<Type>) node.childAt(4).accept(this);
+                Type type = (Type) node.childAt(4).accept(this);
                 if (type != null) { // ("extends" Type)?
-                    classDeclaration.setSuperclassType(type.get(0));
+                    classDeclaration.setSuperclassType(type);
                 }
 
-                List<List<Type>> superInterfaces = (List<List<Type>>) node.childAt(5).accept(this);
+                List<Type> superInterfaces = (List<Type>) node.childAt(5).accept(this);
                 if (superInterfaces != null) {
-                    classDeclaration.superInterfaceTypes().addAll(superInterfaces.get(0));
+                    classDeclaration.superInterfaceTypes().addAll(superInterfaces);
                 }
 
                 classDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.getChildWithName("ClassBody").accept(this));
@@ -95,9 +95,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 enumDeclaration.modifiers().addAll(getModifiers(node.getChildWithName("ClassModifier*")));
                 enumDeclaration.setName((SimpleName) node.getChildWithName("Identifier").accept(this));
 
-                List<List<Type>> typeList = (List<List<Type>>) node.childAt(3).accept(this);
+                List<Type> typeList = (List<Type>) node.childAt(3).accept(this);
                 if (typeList != null) {
-                    enumDeclaration.superInterfaceTypes().addAll(typeList.get(0));
+                    enumDeclaration.superInterfaceTypes().addAll(typeList);
                 }
 
                 // "{" {EnumConstant ","}* ","? EnumBodyDeclarations? "}"
@@ -280,9 +280,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 fragment.setName((SimpleName) variableDeclaratorIdNode.getChildWithName("Identifier").accept(this));
                 fragment.extraDimensions().addAll(getDimensions(variableDeclaratorIdNode.childAt(1)));
 
-                List<Expression> expressions = (List<Expression>) node.childAt(1).accept(this);
-                if (expressions != null) {
-                    fragment.setInitializer(expressions.get(0));
+                Expression expression = (Expression) node.childAt(1).accept(this);
+                if (expression != null) {
+                    fragment.setInitializer(expression);
                 }
                 return fragment;
             }
@@ -416,9 +416,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                         AssertStatement assertStatement = ast.newAssertStatement();
                         assertStatement.setExpression((Expression) node.getChildWithName("Expression").accept(this));
 
-                        List<Expression> message = (List<Expression>) node.childAt(2).accept(this);
+                        Expression message = (Expression) node.childAt(2).accept(this);
                         if (message != null) {
-                            assertStatement.setMessage(message.get(0));
+                            assertStatement.setMessage(message);
                         }
                         return assertStatement;
                     }
@@ -906,8 +906,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     // (QualifiedIdentifier ".")? "this"
                     case "thisPrimary": {
                         ThisExpression thisExpression = ast.newThisExpression();
-                        if (node.childAt(0).children().size() > 0) {
-                            thisExpression.setQualifier(getQualifiedName(node.childAt(0)));
+                        Name qualifiedIdentifier = (Name) node.childAt(0).accept(this);
+                        if (qualifiedIdentifier != null) {
+                            thisExpression.setQualifier(qualifiedIdentifier);
                         }
                         return thisExpression;
                     }
@@ -1222,11 +1223,22 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
         // Flatten sequence inside star and plus
         if (shouldBeFlattened(definition)) {
-            List<Object> result = new ArrayList<>();
-            for (ParseTreeNode child : node.children()) {
-                result.addAll((List<Object>) child.accept(this));
+            if (definition instanceof Opt) {
+                if (node.children().size() == 0) {
+                    return null;
+                }
+                List<Object> result = (List<Object>) node.childAt(0).accept(this);
+                if (result.size() == 1) {
+                    return result.get(0);
+                }
+                return result;
+            } else {
+                List<Object> result = new ArrayList<>();
+                for (ParseTreeNode child : node.children()) {
+                    result.addAll((List<Object>) child.accept(this));
+                }
+                return result;
             }
-            return result;
         }
 
         if (definition instanceof Star || definition instanceof Plus || definition instanceof Sequence) {
@@ -1249,7 +1261,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private static boolean shouldBeFlattened(Symbol symbol) {
-        return (symbol instanceof Star || symbol instanceof Plus) && getSymbol(symbol) instanceof Sequence;
+        return (symbol instanceof Star || symbol instanceof Plus || symbol instanceof Opt) && getSymbol(symbol) instanceof Sequence;
     }
 
     private static Symbol getSymbol(Symbol symbol) {
@@ -1257,11 +1269,14 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             return ((Star) symbol).getSymbol();
         } else if (symbol instanceof Plus) {
             return ((Plus) symbol).getSymbol();
+        } else if (symbol instanceof Opt) {
+            return ((Opt) symbol).getSymbol();
         }
         else throw new RuntimeException("Unsupported symbol " + symbol);
     }
 
     // {Identifier "."}+;
+    // TODO: remove this method and fix the grammar to reflect the change
     private Name getQualifiedName(ParseTreeNode node) {
         List<SimpleName> identifiers = (List<SimpleName>) node.accept(this);
 
