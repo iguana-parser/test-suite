@@ -50,13 +50,13 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 return packageDeclaration;
             }
 
-            // ImportDeclaration: "import"  "static"?  {Identifier "."}+ ("." "*")? ";"
+            // ImportDeclaration: "import"  "static"?  QualifiedIdentifier ("." "*")? ";"
             case "ImportDeclaration": {
                 ImportDeclaration importDeclaration = ast.newImportDeclaration();
                 if (node.childAt(1).children().size() > 0) { // "static"?
                     importDeclaration.setStatic(true);
                 }
-                importDeclaration.setName(getQualifiedName(node.childAt(2)));
+                importDeclaration.setName((Name) node.getChildWithName("QualifiedIdentifier").accept(this));
                 if (node.childAt(3).children().size() > 0) { // ("." "*")?
                     importDeclaration.setOnDemand(true);
                 }
@@ -146,9 +146,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     interfaceDeclaration.typeParameters().addAll(typeParameters);
                 }
 
-                List<List<Type>> superInterfaces = (List<List<Type>>) node.childAt(4).accept(this);
+                List<Type> superInterfaces = (List<Type>) node.childAt(4).accept(this);
                 if (superInterfaces != null) {
-                    interfaceDeclaration.superInterfaceTypes().addAll(superInterfaces.get(0));
+                    interfaceDeclaration.superInterfaceTypes().addAll(superInterfaces);
                 }
 
                 List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.getChildWithName("InterfaceBody").accept(this);
@@ -408,7 +408,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
                     // Expression ";"
                     case "expressionStmt": {
-                        return ast.newExpressionStatement((Expression) node.getChildWithName("Expression").accept(this));
+                        return ast.newExpressionStatement((Expression) node.childAt(0).accept(this));
                     }
 
                     // "assert" Expression (":" Expression)? ";"
@@ -1066,9 +1066,10 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                         if (typeArguments != null) {
                             superConstructorInvocation.typeArguments().addAll(typeArguments);
                         }
-                        List<Expression> expression = (List<Expression>) node.childAt(0).accept(this);
+
+                        Expression expression = (Expression) node.childAt(0).accept(this);
                         if (expression != null) {
-                            superConstructorInvocation.setExpression(expression.get(0));
+                            superConstructorInvocation.setExpression(expression);
                         }
 
                         superConstructorInvocation.arguments().addAll((List<Expression>) node.getChildWithName("Arguments").accept(this));
@@ -1125,13 +1126,13 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                     //  "?" (("extends" | "super") Type)?
                     case "wildCardTypeArgument": {
                         WildcardType wildcardType = ast.newWildcardType();
-                        List<Type> type = (List<Type>) node.childAt(1).accept(this);
+                        Type type = (Type) node.childAt(1).accept(this);
                         if (type != null) {
                             String superOrExtends = node.childAt(1).childAt(0).childAt(0).getText(input);
                             if (superOrExtends.equals("super")) {
                                 wildcardType.setUpperBound(false);
                             }
-                            wildcardType.setBound(type.get(0));
+                            wildcardType.setBound(type);
                         }
                         return wildcardType;
                     }
@@ -1273,29 +1274,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             return ((Opt) symbol).getSymbol();
         }
         else throw new RuntimeException("Unsupported symbol " + symbol);
-    }
-
-    // {Identifier "."}+;
-    // TODO: remove this method and fix the grammar to reflect the change
-    private Name getQualifiedName(ParseTreeNode node) {
-        List<SimpleName> identifiers = (List<SimpleName>) node.accept(this);
-
-        SimpleName simpleName = identifiers.get(0);
-
-        if (identifiers.size() == 1) {
-            return simpleName;
-        }
-
-        Name qualifier = simpleName;
-        simpleName = identifiers.get(1);
-        qualifier = ast.newQualifiedName(qualifier, simpleName);
-
-        for (int i = 2; i < identifiers.size(); i++) {
-            simpleName = identifiers.get(i);
-            qualifier = ast.newQualifiedName(qualifier, simpleName);
-        }
-
-        return qualifier;
     }
 
     private SimpleName getIdentifier(ParseTreeNode node) {
