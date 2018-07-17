@@ -45,6 +45,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             // Annotation* "package"  QualifiedIdentifier ";"
             case "PackageDeclaration": {
                 PackageDeclaration packageDeclaration = ast.newPackageDeclaration();
+                packageDeclaration.annotations().addAll(getModifiers(node.getChildWithName("Annotation*")));
                 packageDeclaration.setName((Name) node.getChildWithName("QualifiedIdentifier").accept(this));
                 return packageDeclaration;
             }
@@ -946,6 +947,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 if (arguments != null) {
                     SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
                     superMethodInvocation.setName(getIdentifier(node.getChildWithName("Identifier")));
+                    superMethodInvocation.arguments().addAll(arguments);
                     return superMethodInvocation;
                 } else {
                     SuperFieldAccess superFieldAccess = ast.newSuperFieldAccess();
@@ -1030,6 +1032,15 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 statements.addAll((List<Statement>) node.childAt(2).accept(this));
                 block.statements().addAll(statements);
                 return block;
+            }
+
+            case "BlockStatement": {
+                Object result = node.childAt(0).accept(this);
+                // TODO: change it by introducing a nonterminal LocalTypeDeclaration
+                if (result instanceof TypeDeclaration) {
+                    return ast.newTypeDeclarationStatement((TypeDeclaration) result);
+                }
+                return result;
             }
 
             case "ExplicitConstructorInvocation": {
