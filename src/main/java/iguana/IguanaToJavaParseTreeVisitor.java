@@ -2,6 +2,7 @@ package iguana;
 
 import iguana.utils.input.Input;
 import iguana.utils.visualization.DotGraph;
+import org.apache.commons.math3.analysis.function.Exp;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jface.text.projection.Fragment;
@@ -9,10 +10,7 @@ import org.iguana.grammar.symbol.*;
 import org.iguana.parsetree.*;
 import org.iguana.util.visualization.ParseTreeToDot;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyList;
@@ -223,14 +221,20 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             // "@" QualifiedIdentifier Values?
             case "Annotation": {
                 Name name = (Name) node.getChildWithName("QualifiedIdentifier").accept(this);
-                List<Object> values = (List<Object>) node.getChildWithName("Values?").accept(this);
-                if (values == null) {
+
+                if (node.childAt(2).children().size() == 0) {
                     MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
                     markerAnnotation.setTypeName(name);
                     return markerAnnotation;
                 }
 
-                if (values.size() == 1) {
+                List<Object> values = (List<Object>) node.getChildWithName("Values?").accept(this);
+
+                if (values == null) {
+                    values = emptyList();
+                }
+
+                if (values.size() == 1 && values.get(0) instanceof Expression) {
                     SingleMemberAnnotation singleMemberAnnotation = ast.newSingleMemberAnnotation();
                     singleMemberAnnotation.setTypeName(name);
                     singleMemberAnnotation.setValue((Expression) values.get(0));

@@ -75,15 +75,15 @@ class TestIguanaASTs {
             }
             assertTrue(result.isParseSuccess());
 
-//            ASTParser astParser = newASTParser(inputContent);
-//            CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
-//
-//            Set<Symbol> ignoreSet = new HashSet<>();
-//            ignoreSet.add(grammar.getLayout());
-//            ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
-//            ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+            ASTParser astParser = newASTParser(inputContent);
+            CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
-//            assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
+            Set<Symbol> ignoreSet = new HashSet<>();
+            ignoreSet.add(grammar.getLayout());
+            ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
+            ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+
+            assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
         })).collect(toList());
     }
 
