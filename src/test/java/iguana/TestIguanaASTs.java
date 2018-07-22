@@ -5,23 +5,12 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.iguana.grammar.Grammar;
-import org.iguana.grammar.GrammarGraph;
-import org.iguana.grammar.symbol.Nonterminal;
-import org.iguana.grammar.symbol.Symbol;
 import org.iguana.grammar.transformation.DesugarPrecedenceAndAssociativity;
 import org.iguana.grammar.transformation.DesugarStartSymbol;
 import org.iguana.grammar.transformation.EBNFToBNF;
 import org.iguana.grammar.transformation.LayoutWeaver;
-import org.iguana.parser.Iguana;
-import org.iguana.parser.ParseResult;
-import org.iguana.parser.ParserRuntime;
-import org.iguana.parsetree.DefaultParseTreeBuilder;
+import org.iguana.parser.IguanaParser;
 import org.iguana.parsetree.ParseTreeNode;
-import org.iguana.parsetree.SPPFToParseTree;
-import org.iguana.sppf.NonPackedNode;
-import org.iguana.sppf.NonterminalNode;
-import org.iguana.util.Configuration;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -30,7 +19,10 @@ import org.junit.jupiter.api.TestFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static iguana.Utils.*;
 import static java.util.stream.Collectors.toList;
@@ -38,9 +30,9 @@ import static org.junit.Assert.assertTrue;
 
 class TestIguanaASTs {
 
-    private GrammarGraph grammarGraph;
     private Grammar grammar;
-    private Nonterminal start;
+    private IguanaParser parser;
+    private Set<String> ignoreSet;
 
     @BeforeEach
     void init() throws Exception {
@@ -55,8 +47,10 @@ class TestIguanaASTs {
         grammar = new LayoutWeaver().transform(grammar);
         grammar = new DesugarStartSymbol().transform(grammar);
 
-        start = Nonterminal.withName(grammar.getStartSymbol().getName());
-        grammarGraph = GrammarGraph.from(grammar);
+        parser = new IguanaParser(grammar);
+
+        ignoreSet = new HashSet<>(1);
+        ignoreSet.add(grammar.getLayout().getName());
     }
 
     @TestFactory
@@ -64,26 +58,15 @@ class TestIguanaASTs {
         List<Path> javaFiles = getFiles(getJDK7SourceLocation(), ".java");
 
         return javaFiles.stream().map(path -> DynamicTest.dynamicTest(path.toString(), () -> {
-            if (path.toString().endsWith("BigClass.java")) {
-                return;
-            }
             String inputContent = getFileContent(path);
             Input input = Input.fromString(inputContent);
-            ParseResult<NonPackedNode> result = Iguana.run(input, new ParserRuntime(Configuration.load()), grammarGraph, start, Collections.emptyMap(), true);
 
-            if (result.isParseError()) {
-                int lineNumber = input.getLineNumber(result.asParseError().getInputIndex());
-                int columnNUmber = input.getColumnNumber(result.asParseError().getInputIndex());
-                System.out.println("Parse error at " + lineNumber + ":" + columnNUmber);
-            }
-            assertTrue(result.isParseSuccess());
+            assertTrue(parser.parse(input));
 
             ASTParser astParser = newASTParser(inputContent);
             CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
-            Set<Symbol> ignoreSet = new HashSet<>();
-            ignoreSet.add(grammar.getLayout());
-            ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
+            ParseTreeNode parseTreeNode = parser.getParseTree(ignoreSet);
             ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
 
             assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
@@ -94,18 +77,10 @@ class TestIguanaASTs {
     void test() throws Exception {
         String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
         Input input = Input.fromString(inputContent);
-        ParseResult<NonPackedNode> result = Iguana.parse(input, grammar);
 
-        if (result.isParseError()) {
-            int lineNumber = input.getLineNumber(result.asParseError().getInputIndex());
-            int columnNUmber = input.getColumnNumber(result.asParseError().getInputIndex());
-            System.out.println("Parse error at " + lineNumber + ":" + columnNUmber);
-        }
-        assertTrue(result.isParseSuccess());
+        assertTrue(parser.parse(input));
 
-        Set<Symbol> ignoreSet = new HashSet<>();
-        ignoreSet.add(grammar.getLayout());
-        ParseTreeNode parseTreeNode = SPPFToParseTree.toParseTree((NonterminalNode) result.asParseSuccess().getResult(), ignoreSet);
+        ParseTreeNode parseTreeNode = parser.getParseTree(ignoreSet);
         ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
 
         ASTParser astParser = newASTParser(inputContent);
