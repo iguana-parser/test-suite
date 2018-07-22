@@ -1,5 +1,6 @@
 package iguana;
 
+import iguana.utils.benchmark.Timer;
 import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -19,10 +20,7 @@ import org.junit.jupiter.api.TestFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static iguana.Utils.*;
 import static java.util.stream.Collectors.toList;
@@ -75,17 +73,29 @@ class TestIguanaASTs {
 
     @Test
     void test() throws Exception {
-        String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
-        Input input = Input.fromString(inputContent);
+        for (int i = 0; i < 10; i++) {
+            String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
+            Input input = Input.fromString(inputContent);
 
-        assertTrue(parser.parse(input));
+            assertTrue(parser.parse(input));
+            System.out.println("Parse time:" +  parser.getRunningTime().getNanoTime() / 1000_000);
 
-        ParseTreeNode parseTreeNode = parser.getParseTree(ignoreSet);
-        ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+            Timer timer = new Timer();
+            timer.start();
+            ParseTreeNode parseTreeNode = parser.getParseTree(ignoreSet);
+            timer.stop();
+            System.out.println("Parse tree creation time:" + timer.getNanoTime() / 1000_000);
 
-        ASTParser astParser = newASTParser(inputContent);
-        CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
+            timer.reset();
+            timer.start();
+            ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
+            timer.stop();
+            System.out.println("AST creation time:" + timer.getNanoTime() / 1000_000);
 
-        assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
+            ASTParser astParser = newASTParser(inputContent);
+            CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
+
+            assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
+        }
     }
 }
