@@ -28,669 +28,158 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     public Object visitNonterminalNode(NonterminalNode node) {
         switch (node.getName()) {
 
-            // PackageDeclaration? ImportDeclaration* TypeDeclaration*
-            case "CompilationUnit": {
-                CompilationUnit compilationUnit = ast.newCompilationUnit();
-                PackageDeclaration packageDeclaration = (PackageDeclaration) node.childAt(0).accept(this);
-                if (packageDeclaration != null) {
-                    compilationUnit.setPackage(packageDeclaration);
-                }
-                compilationUnit.imports().addAll((List<ImportDeclaration>) node.childAt(1).accept(this));
-                compilationUnit.types().addAll((List<TypeDeclaration>) node.childAt(2).accept(this));
-                return compilationUnit;
-            }
+            case "CompilationUnit":
+                return visitCompilationUnit(node);
 
-            // Annotation* "package"  QualifiedIdentifier ";"
-            case "PackageDeclaration": {
-                PackageDeclaration packageDeclaration = ast.newPackageDeclaration();
-                packageDeclaration.annotations().addAll(getModifiers(node.childAt(0)));
-                packageDeclaration.setName((Name) node.childAt(2).accept(this));
-                return packageDeclaration;
-            }
+            case "PackageDeclaration":
+                return visitPackageDeclaration(node);
 
-            // "import"  "static"?  QualifiedIdentifier ("." "*")? ";"
-            case "ImportDeclaration": {
-                ImportDeclaration importDeclaration = ast.newImportDeclaration();
-                if (node.childAt(1).children().size() > 0) { // "static"?
-                    importDeclaration.setStatic(true);
-                }
-                importDeclaration.setName((Name) node.childAt(2).accept(this));
-                if (node.childAt(3).children().size() > 0) { // ("." "*")?
-                    importDeclaration.setOnDemand(true);
-                }
-                return importDeclaration;
-            }
+            case "ImportDeclaration":
+                return visitImportDeclaration(node);
 
-            // ClassModifier* "class" Identifier TypeParameters? ("extends" Type)? ("implements" TypeList)? ClassBody;
-            case "NormalClassDeclaration": {
-                TypeDeclaration classDeclaration = ast.newTypeDeclaration();
-                classDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                classDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+            case "NormalClassDeclaration":
+                return visitNormalClassDeclaration(node);
 
-                List<Type> typeParameters = (List<Type>) node.childAt(3).accept(this);
-                if (typeParameters != null) {
-                    classDeclaration.typeParameters().addAll(typeParameters);
-                }
+            case "EnumDeclaration":
+                return visitEnumDeclaration(node);
 
-                Type type = (Type) node.childAt(4).accept(this);
-                if (type != null) { // ("extends" Type)?
-                    classDeclaration.setSuperclassType(type);
-                }
+            case "EnumConstant":
+                return visitEnumConstant(node);
 
-                List<Type> superInterfaces = (List<Type>) node.childAt(5).accept(this);
-                if (superInterfaces != null) {
-                    classDeclaration.superInterfaceTypes().addAll(superInterfaces);
-                }
+            case "NormalInterfaceDeclaration":
+                return visitNormalInterfaceDeclaration(node);
 
-                classDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.childAt(6).accept(this));
+            case "AbstractMethodDeclaration":
+                return visitAbstractMethodDeclaration(node);
 
-                return classDeclaration;
-            }
+            case "AnnotationTypeDeclaration":
+                return visitAnnotationTypeDeclaration(node);
 
-            // ClassModifier* "enum" Identifier ("implements" TypeList)? EnumBody
-            case "EnumDeclaration": {
-                EnumDeclaration enumDeclaration = ast.newEnumDeclaration();
-                enumDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                enumDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+            case "ConstantDeclaration":
+                return visitConstantDeclaration(node);
 
-                List<Type> typeList = (List<Type>) node.childAt(3).accept(this);
-                if (typeList != null) {
-                    enumDeclaration.superInterfaceTypes().addAll(typeList);
-                }
+            case "AnnotationMethodDeclaration":
+                return visitAnnotationMethodDeclaration(node);
 
-                ParseTreeNode enumBodyNode = node.childAt(4);
-                // "{" {EnumConstant ","}* ","? EnumBodyDeclarations? "}"
-                List<BodyDeclaration> enumConstants = (List<BodyDeclaration>) enumBodyNode.childAt(1).accept(this);
-                enumDeclaration.enumConstants().addAll(enumConstants);
+            case "Annotation":
+                return visitAnnotation(node);
 
-                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) enumBodyNode.childAt(3).accept(this);
-                if (bodyDeclarations != null) {
-                    enumDeclaration.bodyDeclarations().addAll(bodyDeclarations);
-                }
+            case "ElementValueArrayInitializer":
+                return visitElementValueArrayInitializer(node);
 
-                return enumDeclaration;
-            }
+            case "ElementValuePair":
+                return visitElementValuePair(node);
 
-            // Annotation* Identifier Arguments? ClassBody?
-            case "EnumConstant": {
-                EnumConstantDeclaration enumConstantDeclaration = ast.newEnumConstantDeclaration();
+            case "FieldDeclaration":
+                return visitFieldDeclaration(node);
 
-                enumConstantDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                enumConstantDeclaration.setName(getIdentifier(node.childAt(1)));
+            case "VariableDeclarator":
+                return visitVariableDeclarator(node);
 
-                List<Expression> arguments = (List<Expression>) node.childAt(2).accept(this);
-                if (arguments != null) {
-                    enumConstantDeclaration.arguments().addAll(arguments);
-                }
+            case "MethodDeclaration":
+                return visitMethodDeclaration(node);
 
-                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.childAt(3).accept(this);
-                if (bodyDeclarations != null) {
-                    AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
-                    anonymousClassDeclaration.bodyDeclarations().addAll(bodyDeclarations);
-                    enumConstantDeclaration.setAnonymousClassDeclaration(anonymousClassDeclaration);
-                }
+            case "Throws":
+                return visitThrows(node);
 
-                return enumConstantDeclaration;
-            }
+            case "FormalParameterList":
+                return visitFormalParameterList(node);
 
-            // InterfaceModifier* "interface" Identifier TypeParameters? ("extends" TypeList)? InterfaceBody
-            case "NormalInterfaceDeclaration": {
-                TypeDeclaration interfaceDeclaration = ast.newTypeDeclaration();
-                interfaceDeclaration.setInterface(true);
-                interfaceDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                interfaceDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+            case "FormalParameter":
+                return visitFormalParameter(node);
 
-                List<TypeParameter> typeParameters = (List<TypeParameter>) node.childAt(3).accept(this);
-                if (typeParameters != null) {
-                    interfaceDeclaration.typeParameters().addAll(typeParameters);
-                }
+            case "LastFormalParameter":
+                return visitLastFormalParameter(node);
 
-                List<Type> superInterfaces = (List<Type>) node.childAt(4).accept(this);
-                if (superInterfaces != null) {
-                    interfaceDeclaration.superInterfaceTypes().addAll(superInterfaces);
-                }
+            case "Result":
+                return visitResult(node);
 
-                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.childAt(5).accept(this);
-                interfaceDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+            case "Block":
+                return visitBlock(node);
 
-                return interfaceDeclaration;
-            }
-
-            // AbstractMethodModifier* TypeParameters? Result MethodDeclarator Throws? ";"
-            case "AbstractMethodDeclaration": {
-                MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
-                methodDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-
-                List<TypeParameter> typeParameters = (List<TypeParameter>) node.childAt(1).accept(this);
-                if (typeParameters != null) {
-                    methodDeclaration.typeParameters().addAll(typeParameters);
-                }
-
-                Type returnType = (Type) node.childAt(2).accept(this);
-                methodDeclaration.setReturnType2(returnType);
-
-                // Identifier "(" FormalParameterList? ")" ("[" "]")*
-                ParseTreeNode methodDeclarator = node.childAt(3);
-                methodDeclaration.setName((SimpleName) methodDeclarator.childAt(0).accept(this));
-
-                List<SingleVariableDeclaration> parameters = (List<SingleVariableDeclaration>) methodDeclarator.childAt(2).accept(this);
-                if (parameters != null) {
-                    methodDeclaration.parameters().addAll(parameters);
-                }
-
-                methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(4)));
-
-                List<Type> exceptionTypes = (List<Type>) node.childAt(4).accept(this);
-                if (exceptionTypes != null) {
-                    methodDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
-                }
-
-                return methodDeclaration;
-            }
-
-            // InterfaceModifier* "@" "interface" Identifier AnnotationTypeBody
-            case "AnnotationTypeDeclaration": {
-                AnnotationTypeDeclaration annotationTypeDeclaration = ast.newAnnotationTypeDeclaration();
-                annotationTypeDeclaration.setName(getIdentifier(node.childAt(3)));
-                annotationTypeDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-
-                annotationTypeDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.childAt(4).accept(this));
-                return annotationTypeDeclaration;
-            }
-
-            // ConstantModifier* Type {VariableDeclarator ","}+ ";"
-            case "ConstantDeclaration": {
-                List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
-                FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
-                fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
-                fieldDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                fieldDeclaration.setType((Type) node.childAt(1).accept(this));
-                return fieldDeclaration;
-            }
-
-            // AbstractMethodModifier* Type Identifier "(" ")" ("[" "]")* DefaultValue? ";"
-            case "AnnotationMethodDeclaration": {
-                AnnotationTypeMemberDeclaration annotationTypeMemberDeclaration = ast.newAnnotationTypeMemberDeclaration();
-                annotationTypeMemberDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                annotationTypeMemberDeclaration.setType((Type) node.childAt(1).accept(this));
-                annotationTypeMemberDeclaration.setName(getIdentifier(node.childAt(2)));
-                Expression expression = (Expression) node.childAt(6).accept(this);
-                annotationTypeMemberDeclaration.setDefault(expression);
-                return annotationTypeMemberDeclaration;
-            }
-
-            // "@" QualifiedIdentifier Values?
-            case "Annotation": {
-                Name name = (Name) node.childAt(1).accept(this);
-
-                if (node.childAt(2).children().size() == 0) {
-                    MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
-                    markerAnnotation.setTypeName(name);
-                    return markerAnnotation;
-                }
-
-                List<Object> values = (List<Object>) node.childAt(2).accept(this);
-
-                if (values == null) {
-                    values = emptyList();
-                }
-
-                if (values.size() == 1 && values.get(0) instanceof Expression) {
-                    SingleMemberAnnotation singleMemberAnnotation = ast.newSingleMemberAnnotation();
-                    singleMemberAnnotation.setTypeName(name);
-                    singleMemberAnnotation.setValue((Expression) values.get(0));
-                    return singleMemberAnnotation;
-                }
-
-                NormalAnnotation normalAnnotation = ast.newNormalAnnotation();
-                normalAnnotation.setTypeName(name);
-                normalAnnotation.values().addAll(values);
-                return normalAnnotation;
-            }
-
-            // "{" { ElementValue "," }* ","? "}"
-            case "ElementValueArrayInitializer": {
-                ArrayInitializer arrayInitializer = ast.newArrayInitializer();
-                arrayInitializer.expressions().addAll((List<Expression>) node.childAt(1).accept(this));
-                return arrayInitializer;
-            }
-
-            // Identifier "=" ElementValue
-            case "ElementValuePair": {
-                MemberValuePair memberValuePair = ast.newMemberValuePair();
-                memberValuePair.setName(getIdentifier(node.childAt(0)));
-                memberValuePair.setValue((Expression) node.childAt(2).accept(this));
-                return memberValuePair;
-            }
-
-            // FieldModifier* Type {VariableDeclarator ","}+ ";"
-            case "FieldDeclaration": {
-                List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
-                FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
-                fieldDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                fieldDeclaration.setType((Type) node.childAt(1).accept(this));
-                fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
-                return fieldDeclaration;
-            }
-
-            // VariableDeclaratorId ("=" VariableInitializer)?
-            case "VariableDeclarator": {
-                VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-                ParseTreeNode variableDeclaratorIdNode = node.childAt(0);
-                fragment.setName((SimpleName) variableDeclaratorIdNode.childAt(0).accept(this));
-                fragment.extraDimensions().addAll(getDimensions(variableDeclaratorIdNode.childAt(1)));
-
-                Expression expression = (Expression) node.childAt(1).accept(this);
-                if (expression != null) {
-                    fragment.setInitializer(expression);
-                }
-                return fragment;
-            }
-
-            // MethodDeclaration: MethodModifier* TypeParameters? Result MethodDeclarator Throws? MethodBody
-            // MethodDeclarator:  Identifier "(" FormalParameterList? ")" ("[" "]")*
-            case "MethodDeclaration": {
-                MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
-
-                methodDeclaration.modifiers().addAll((List<IExtendedModifier>) node.childAt(0).accept(this));
-
-                List<Type> typeParameters = (List<Type>) node.childAt(1).accept(this);
-                if (typeParameters != null) {
-                    methodDeclaration.typeParameters().addAll(typeParameters);
-                }
-
-                methodDeclaration.setReturnType2((Type) node.childAt(2).accept(this));
-
-                ParseTreeNode methodDeclarator = node.childAt(3);
-                methodDeclaration.setName((SimpleName) methodDeclarator.childAt(0).accept(this));
-
-                List<SingleVariableDeclaration> parameters = (List<SingleVariableDeclaration>) methodDeclarator.childAt(2).accept(this);
-                if (parameters != null) {
-                    methodDeclaration.parameters().addAll(parameters);
-                }
-
-                methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(4)));
-
-                List<Type> exceptionTypes = (List<Type>) node.childAt(4).accept(this);
-                if (exceptionTypes != null) {
-                    methodDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
-                }
-
-                methodDeclaration.setBody((Block) node.childAt(5).accept(this));
-
-                return methodDeclaration;
-            }
-
-            // "throws" {QualifiedIdentifier ","}+
-            case "Throws": {
-                return ((List<Name>) node.childAt(1).accept(this)).stream().map(name -> ast.newSimpleType(name)).collect(toList());
-            }
-
-            // (FormalParameter ",")* LastFormalParameter
-            case "FormalParameterList": {
-                List<SingleVariableDeclaration> formalParameters = (List<SingleVariableDeclaration>) node.childAt(0).accept(this);
-                SingleVariableDeclaration lastFormalParameter = (SingleVariableDeclaration) node.childAt(1).accept(this);
-                formalParameters.add(lastFormalParameter);
-                return formalParameters;
-            }
-
-            // FVariableModifier* Type VariableDeclaratorId
-            case "FormalParameter": {
-                SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
-                singleVariableDeclaration.setType((Type) node.childAt(1).accept(this));
-                singleVariableDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                ParseTreeNode variableDeclaratorId = node.childAt(2);
-                singleVariableDeclaration.extraDimensions().addAll(getDimensions(variableDeclaratorId.childAt(1)));
-                singleVariableDeclaration.setName((SimpleName) variableDeclaratorId.childAt(0).accept(this));
-                return singleVariableDeclaration;
-            }
-
-            /*
-             * LastFormalParameter
-             *   : VariableModifier* Type "..." VariableDeclaratorId
-             *   | FormalParameter
-             */
-            case "LastFormalParameter": {
-                if (node.children().size() == 1) { // Second alternative
-                    return node.childAt(0).accept(this);
-                }
-                SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
-                singleVariableDeclaration.setType((Type) node.childAt(1).accept(this));
-                singleVariableDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-                singleVariableDeclaration.setVarargs(true);
-                singleVariableDeclaration.setName((SimpleName) node.childAt(3).childAt(0).accept(this));
-                return singleVariableDeclaration;
-            }
-
-            //   Type
-            // | "void"
-            case "Result": {
-                if (node.childAt(0).getName().equals("Type")) {
-                    return node.childAt(0).accept(this);
-                }
-                return ast.newPrimitiveType(PrimitiveType.VOID);
-            }
-
-            //  "{" BlockStatement* "}"
-            case "Block": {
-                Block block = ast.newBlock();
-                List<ASTNode> blockStatements = (List<ASTNode>) node.childAt(1).accept(this);
-                for (ASTNode blockStatement : blockStatements) {
-                    if (blockStatement instanceof TypeDeclaration) {
-                        block.statements().add(ast.newTypeDeclarationStatement((TypeDeclaration) blockStatement));
-                    } else {
-                        block.statements().add(blockStatement);
-                    }
-                }
-                return block;
-            }
-
-            // VariableModifier* Type {VariableDeclarator ","}+ ";"
-            case "LocalVariableDeclarationStatement": {
-                List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
-                VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragments.get(0));
-                for (int i = 1; i < fragments.size(); i++) {
-                    variableDeclarationStatement.fragments().add(fragments.get(i));
-                }
-                variableDeclarationStatement.setType((Type) node.childAt(1).accept(this));
-                variableDeclarationStatement.modifiers().addAll(getModifiers(node.childAt(0)));
-                return variableDeclarationStatement;
-            }
+            case "LocalVariableDeclarationStatement":
+                return visitLocalVariableDeclarationStatement(node);
 
             case "Statement": {
 
                 switch (node.getGrammarDefinition().getLabel()) {
 
-                    // Block
-                    case "blockStmt": {
-                        return node.childAt(0).accept(this);
-                    }
+                    case "blockStmt":
+                        return visitBlockStmt(node);
 
-                    case "emptyStmt": {
-                        return ast.newEmptyStatement();
-                    }
+                    case "emptyStmt":
+                        return visitEmptyStmt(node);
 
-                    // Expression ";"
-                    case "expressionStmt": {
-                        return ast.newExpressionStatement((Expression) node.childAt(0).accept(this));
-                    }
+                    case "expressionStmt":
+                        return visitExpressionStmt(node);
 
-                    // "assert" Expression (":" Expression)? ";"
-                    case "assertStmt": {
-                        AssertStatement assertStatement = ast.newAssertStatement();
-                        assertStatement.setExpression((Expression) node.childAt(1).accept(this));
+                    case "assertStmt":
+                        return visitAssertStmt(node);
 
-                        Expression message = (Expression) node.childAt(2).accept(this);
-                        if (message != null) {
-                            assertStatement.setMessage(message);
-                        }
-                        return assertStatement;
-                    }
+                    case "switchStmt":
+                        return visitSwitchStmt(node);
 
-                    // "switch" "(" Expression ")" "{" SwitchBlockStatementGroup* SwitchLabel* "}"
-                    case "switchStmt": {
-                        SwitchStatement switchStatement = ast.newSwitchStatement();
-                        switchStatement.setExpression((Expression) node.childAt(2).accept(this));
+                    case "doStmt":
+                        return visitDoStmt(node);
 
-                        List<Statement> statements = node.childAt(5).children().stream().flatMap(stmt -> getSwitchBlockStatements(stmt).stream()).collect(toList());
-                        switchStatement.statements().addAll(statements);
-                        switchStatement.statements().addAll((List<Statement>) node.childAt(6).accept(this));
-                        return switchStatement;
-                    }
+                    case "breakStmt":
+                        return visitBreakStmt(node);
 
-                    // "do" Statement "while" "(" Expression ")" ";"
-                    case "doStmt": {
-                        DoStatement doStatement = ast.newDoStatement();
-                        doStatement.setBody((Statement) node.childAt(1).accept(this));
-                        doStatement.setExpression((Expression) node.childAt(4).accept(this));
-                        return doStatement;
-                    }
+                    case "continueStmt":
+                        return visitContinueStmt(node);
 
-                    // "break" Identifier? ";"
-                    case "breakStmt": {
-                        BreakStatement breakStatement = ast.newBreakStatement();
+                    case "returnStmt":
+                        return visitReturnStatement(node);
 
-                        SimpleName identifier = (SimpleName) node.childAt(1).accept(this);
-                        if (identifier != null) {
-                            breakStatement.setLabel(identifier);
-                        }
-                        return breakStatement;
-                    }
+                    case "synchronizedStmt":
+                        return visitSynchronizedStmt(node);
 
-                    // "continue" Identifier? ";"
-                    case "continueStmt": {
-                        ContinueStatement continueStatement = ast.newContinueStatement();
-                        SimpleName identifier = (SimpleName) node.childAt(1).accept(this);
-                        if (identifier != null) {
-                            continueStatement.setLabel(identifier);
-                        }
-                        return continueStatement;
-                    }
+                    case "throwStmt":
+                        return visitThrowStmt(node);
 
-                    // "return" Expression? ";"
-                    case "returnStmt": {
-                        ReturnStatement returnStatement = ast.newReturnStatement();
-                        Expression expression = (Expression) node.childAt(1).accept(this);
-                        if (expression != null) {
-                            returnStatement.setExpression(expression);
-                        }
-                        return returnStatement;
-                    }
+                    case "tryStmt":
+                        return visitTryStmt(node);
 
-                    // "synchronized" "(" Expression ")" Block
-                    case "synchronizedStmt": {
-                        SynchronizedStatement synchronizedStatement = ast.newSynchronizedStatement();
-                        synchronizedStatement.setExpression((Expression) node.childAt(2).accept(this));
-                        synchronizedStatement.setBody((Block) node.childAt(4).accept(this));
-                        return synchronizedStatement;
-                    }
+                    case "tryFinally":
+                        return visitTryFinally(node);
 
-                    // "throw" Expression ";"
-                    case "throwStmt": {
-                        ThrowStatement throwStatement = ast.newThrowStatement();
-                        throwStatement.setExpression((Expression) node.childAt(1).accept(this));
-                        return throwStatement;
-                    }
+                    case "tryWithResourcesStmt":
+                        return visitTryWithResourcesStmt(node);
 
-                    // "try" Block CatchClause+
-                    case "tryStmt": {
-                        TryStatement tryStatement = ast.newTryStatement();
-                        tryStatement.setBody((Block) node.childAt(1).accept(this));
-                        tryStatement.catchClauses().addAll((List<CatchClause>) node.childAt(2).accept(this));
-                        return tryStatement;
-                    }
+                    case "labelStmt":
+                        return visitLabelStmt(node);
 
-                    // "try" Block CatchClause* Finally
-                    case "tryFinally": {
-                        TryStatement tryStatement = ast.newTryStatement();
-                        tryStatement.setBody((Block) node.childAt(1).accept(this));
-                        tryStatement.catchClauses().addAll((List<CatchClause>) node.childAt(2).accept(this));
-                        tryStatement.setFinally((Block) node.childAt(3).accept(this));
-                        return tryStatement;
-                    }
+                    case "ifStmt":
+                        return visitIfStmt(node);
 
-                    // "try" ResourceSpecification Block CatchClause* Finally?
-                    case "tryWithResourcesStmt": {
-                        TryStatement tryStatement = ast.newTryStatement();
-                        tryStatement.resources().addAll((List<Expression>) node.childAt(1).accept(this));
-                        tryStatement.setBody((Block) node.childAt(2).accept(this));
-                        tryStatement.catchClauses().addAll((List<CatchClause>) node.childAt(3).accept(this));
+                    case "ifElseStmt":
+                        return visitIfElseStmt(node);
 
-                        Block block = (Block) node.childAt(4).accept(this);
-                        if (block != null) {
-                            tryStatement.setFinally(block);
-                        }
-                        return tryStatement;
-                    }
+                    case "whileStmt":
+                        return visitWhileStmt(node);
 
-                    // "(" { Resource ";"}+ ";"? ")"
-                    case "ResourceSpecification": {
-                        return node.childAt(1).accept(this);
-                    }
-
-                    // Identifier ":" Statement
-                    case "labelStmt": {
-                        LabeledStatement labeledStatement = ast.newLabeledStatement();
-                        labeledStatement.setLabel((SimpleName) node.childAt(0).accept(this));
-                        labeledStatement.setBody((Statement) node.childAt(2).accept(this));
-                        return labeledStatement;
-                    }
-
-                    // "if" "(" Expression ")" Statement !>>> "else"
-                    case "ifStmt": {
-                        IfStatement ifStatement = ast.newIfStatement();
-                        ifStatement.setExpression((Expression) node.childAt(2).accept(this));
-                        Statement thenBranch = (Statement) node.childAt(4).accept(this);
-                        if (thenBranch != null) ifStatement.setThenStatement(thenBranch);
-                        return ifStatement;
-                    }
-
-                    // "if" "(" Expression ")" Statement "else" Statement
-                    case "ifElseStmt": {
-                        IfStatement ifStatement = ast.newIfStatement();
-                        ifStatement.setExpression((Expression) node.childAt(2).accept(this));
-                        Statement thenBranch = (Statement) node.childAt(4).accept(this);
-                        if (thenBranch != null)
-                            ifStatement.setThenStatement(thenBranch);
-                        Statement elseBranch = (Statement) node.childAt(6).accept(this);
-                        if (elseBranch != null)
-                            ifStatement.setElseStatement(elseBranch);
-                        return ifStatement;
-                    }
-
-                    // "while" "(" Expression ")" Statement
-                    case "whileStmt": {
-                        WhileStatement whileStatement = ast.newWhileStatement();
-                        whileStatement.setExpression((Expression) node.childAt(2).accept(this));
-
-                        Statement body = (Statement) node.childAt(4).accept(this);
-                        whileStatement.setBody(body);
-                        return whileStatement;
-                    }
-
-                    // "for" "(" ForControl ")" Statement
-                    case "forStmt": {
-                        ParseTreeNode forControlNode = node.childAt(2);
-
-                        switch (((Rule) forControlNode.getGrammarDefinition()).getLabel()) {
-
-                            // ForInit? ";" Expression? ";" ForUpdate?
-                            case "traditionalFor": {
-                                ForStatement forStatement = ast.newForStatement();
-
-                                List<Expression> forInit = (List<Expression>) forControlNode.childAt(0).accept(this);
-                                if (forInit != null) {
-                                    forStatement.initializers().addAll(forInit);
-                                }
-
-                                Expression expression = (Expression) forControlNode.childAt(2).accept(this);
-                                if (expression != null) {
-                                    forStatement.setExpression(expression);
-                                }
-
-                                List<Expression> forUpdate = (List<Expression>) forControlNode.childAt(4).accept(this);
-                                if (forUpdate != null) {
-                                    forStatement.updaters().addAll(forUpdate);
-                                }
-
-                                Statement statement = (Statement) node.childAt(4).accept(this);
-                                forStatement.setBody(statement);
-
-                                return forStatement;
-                            }
-
-                            // FormalParameter ":" Expression
-                            case "enhancedFor": {
-                                EnhancedForStatement forStatement = ast.newEnhancedForStatement();
-
-                                forStatement.setExpression((Expression) forControlNode.childAt(2).accept(this));
-                                SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration) forControlNode.childAt(0).accept(this);
-                                forStatement.setParameter(singleVariableDeclaration);
-
-                                forStatement.setBody((Statement) node.childAt(4).accept(this));
-                                return forStatement;
-                            }
-                        }
-                    }
+                    case "forStmt":
+                        return visitForStmt(node);
                 }
             }
 
-            case "ForInit": {
+            case "ForInit":
+                return visitForInit(node);
 
-                switch (node.getGrammarDefinition().getLabel()) {
-                    // {Expression ","}+
-                    case "expressions": {
-                        return node.childAt(0).accept(this);
-                    }
+            case "Resource":
+                return visitResource(node);
 
-                    // VariableModifier* Type {VariableDeclarator ","}+
-                    case "variableDecl": {
-                        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
-                        VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragments.get(0));
-                        variableDeclarationExpression.fragments().addAll(fragments.subList(1, fragments.size()));
-                        variableDeclarationExpression.setType((Type) node.childAt(1).accept(this));
-                        variableDeclarationExpression.modifiers().addAll(getModifiers(node.childAt(0)));
-                        return singletonList(variableDeclarationExpression);
-                    }
-                }
-            }
+            case "SwitchLabel":
+                return visitSwitchLabel(node);
 
-            // VariableModifier* ReferenceType VariableDeclaratorId "=" Expression
-            case "Resource": {
-                VariableDeclarationFragment variableDeclarationFragment = ast.newVariableDeclarationFragment();
-                variableDeclarationFragment.setName(getIdentifier(node.childAt(2).childAt(0)));
-                variableDeclarationFragment.setInitializer((Expression) node.childAt(4).accept(this));
+            case "CatchClause":
+                return visitCatchClause(node);
 
-                VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(variableDeclarationFragment);
-                variableDeclarationExpression.modifiers().addAll(getModifiers(node.childAt(0)));
-                variableDeclarationExpression.setType((Type) node.childAt(1).accept(this));
-                return variableDeclarationExpression;
-            }
+            case "CatchType":
+                return visitCatchType(node);
 
-            /*
-             * SwitchLabel
-             *   : "case" Expression ":"
-             *   | "default" ":"
-             */
-            case "SwitchLabel": {
-                SwitchCase switchCase = ast.newSwitchCase();
-                switchCase.setExpression(null); // default case
-                if (node.children().size() == 3) {
-                    switchCase.setExpression((Expression) node.childAt(1).accept(this));
-                }
-                return switchCase;
-            }
-
-            // "catch" "(" VariableModifier* CatchType Identifier ")" Block
-            case "CatchClause": {
-                CatchClause catchClause = ast.newCatchClause();
-
-                SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
-                singleVariableDeclaration.modifiers().addAll(getModifiers(node.childAt(2)));
-                singleVariableDeclaration.setType((Type) node.childAt(3).accept(this));
-                singleVariableDeclaration.setName((SimpleName) node.childAt(4).accept(this));
-                catchClause.setException(singleVariableDeclaration);
-
-                catchClause.setBody((Block) node.childAt(6).accept(this));
-
-                return catchClause;
-            }
-
-            // {QualifiedIdentifier "|"}+
-            case "CatchType": {
-                List<Type> types = ((List<Name>) node.childAt(0).accept(this)).stream().map(name -> ast.newSimpleType(name)).collect(toList());
-                if (types.size() == 1) {
-                    return types.get(0);
-                }
-                UnionType unionType = ast.newUnionType();
-                unionType.types().addAll(types);
-                return unionType;
-            }
-
-            // "finally" Block
-            case "Finally": {
-                return node.childAt(1).accept(this);
-            }
+            case "Finally":
+                return visitFinally(node);
 
             case "Expression": {
                 // Infix expression
@@ -1193,6 +682,665 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         return visitChildren(node);
     }
 
+    // Statement: "finally" Block
+    private Object visitFinally(NonterminalNode node) {
+        return node.childAt(1).accept(this);
+    }
+
+    // {QualifiedIdentifier "|"}+
+    private Type visitCatchType(NonterminalNode node) {
+        List<Type> types = ((List<Name>) node.childAt(0).accept(this)).stream().map(name -> ast.newSimpleType(name)).collect(toList());
+        if (types.size() == 1) {
+            return types.get(0);
+        }
+        UnionType unionType = ast.newUnionType();
+        unionType.types().addAll(types);
+        return unionType;
+    }
+
+    // CatchClause: "catch" "(" VariableModifier* CatchType Identifier ")" Block
+    private Object visitCatchClause(NonterminalNode node) {
+        CatchClause catchClause = ast.newCatchClause();
+
+        SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+        singleVariableDeclaration.modifiers().addAll(getModifiers(node.childAt(2)));
+        singleVariableDeclaration.setType((Type) node.childAt(3).accept(this));
+        singleVariableDeclaration.setName((SimpleName) node.childAt(4).accept(this));
+        catchClause.setException(singleVariableDeclaration);
+
+        catchClause.setBody((Block) node.childAt(6).accept(this));
+
+        return catchClause;
+    }
+
+    /*
+     * SwitchLabel
+     *   : "case" Expression ":"
+     *   | "default" ":"
+     */
+    private SwitchCase visitSwitchLabel(NonterminalNode node) {
+        SwitchCase switchCase = ast.newSwitchCase();
+        switchCase.setExpression(null); // default case
+        if (node.children().size() == 3) {
+            switchCase.setExpression((Expression) node.childAt(1).accept(this));
+        }
+        return switchCase;
+    }
+
+    // Resource: VariableModifier* ReferenceType VariableDeclaratorId "=" Expression
+    private VariableDeclarationExpression visitResource(NonterminalNode node) {
+        VariableDeclarationFragment variableDeclarationFragment = ast.newVariableDeclarationFragment();
+        variableDeclarationFragment.setName(getIdentifier(node.childAt(2).childAt(0)));
+        variableDeclarationFragment.setInitializer((Expression) node.childAt(4).accept(this));
+
+        VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(variableDeclarationFragment);
+        variableDeclarationExpression.modifiers().addAll(getModifiers(node.childAt(0)));
+        variableDeclarationExpression.setType((Type) node.childAt(1).accept(this));
+        return variableDeclarationExpression;
+    }
+
+    private Object visitForInit(NonterminalNode node) {
+        switch (node.getGrammarDefinition().getLabel()) {
+            // {Expression ","}+
+            case "expressions": {
+                return node.childAt(0).accept(this);
+            }
+
+            // VariableModifier* Type {VariableDeclarator ","}+
+            case "variableDecl": {
+                List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
+                VariableDeclarationExpression variableDeclarationExpression = ast.newVariableDeclarationExpression(fragments.get(0));
+                variableDeclarationExpression.fragments().addAll(fragments.subList(1, fragments.size()));
+                variableDeclarationExpression.setType((Type) node.childAt(1).accept(this));
+                variableDeclarationExpression.modifiers().addAll(getModifiers(node.childAt(0)));
+                return singletonList(variableDeclarationExpression);
+            }
+
+            default:
+                throw new RuntimeException("Should not reach here");
+        }
+    }
+
+    // Statement: "for" "(" ForControl ")" Statement
+    private Statement visitForStmt(NonterminalNode node) {
+        ParseTreeNode forControlNode = node.childAt(2);
+
+        switch (((Rule) forControlNode.getGrammarDefinition()).getLabel()) {
+
+            // ForInit? ";" Expression? ";" ForUpdate?
+            case "traditionalFor": {
+                ForStatement forStatement = ast.newForStatement();
+
+                List<Expression> forInit = (List<Expression>) forControlNode.childAt(0).accept(this);
+                if (forInit != null) {
+                    forStatement.initializers().addAll(forInit);
+                }
+
+                Expression expression = (Expression) forControlNode.childAt(2).accept(this);
+                if (expression != null) {
+                    forStatement.setExpression(expression);
+                }
+
+                List<Expression> forUpdate = (List<Expression>) forControlNode.childAt(4).accept(this);
+                if (forUpdate != null) {
+                    forStatement.updaters().addAll(forUpdate);
+                }
+
+                Statement statement = (Statement) node.childAt(4).accept(this);
+                forStatement.setBody(statement);
+
+                return forStatement;
+            }
+
+            // FormalParameter ":" Expression
+            case "enhancedFor": {
+                EnhancedForStatement forStatement = ast.newEnhancedForStatement();
+
+                forStatement.setExpression((Expression) forControlNode.childAt(2).accept(this));
+                SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration) forControlNode.childAt(0).accept(this);
+                forStatement.setParameter(singleVariableDeclaration);
+
+                forStatement.setBody((Statement) node.childAt(4).accept(this));
+                return forStatement;
+            }
+
+            default:
+                throw new RuntimeException("Should not reach here");
+        }
+    }
+
+    // Statement: "while" "(" Expression ")" Statement
+    private Object visitWhileStmt(NonterminalNode node) {
+        WhileStatement whileStatement = ast.newWhileStatement();
+        whileStatement.setExpression((Expression) node.childAt(2).accept(this));
+
+        Statement body = (Statement) node.childAt(4).accept(this);
+        whileStatement.setBody(body);
+        return whileStatement;
+    }
+
+    // Statement: "if" "(" Expression ")" Statement "else" Statement
+    private Object visitIfElseStmt(NonterminalNode node) {
+        IfStatement ifStatement = ast.newIfStatement();
+        ifStatement.setExpression((Expression) node.childAt(2).accept(this));
+        Statement thenBranch = (Statement) node.childAt(4).accept(this);
+        if (thenBranch != null)
+            ifStatement.setThenStatement(thenBranch);
+        Statement elseBranch = (Statement) node.childAt(6).accept(this);
+        if (elseBranch != null)
+            ifStatement.setElseStatement(elseBranch);
+        return ifStatement;
+    }
+
+    // Statement: "if" "(" Expression ")" Statement !>>> "else"
+    private Object visitIfStmt(NonterminalNode node) {
+        IfStatement ifStatement = ast.newIfStatement();
+        ifStatement.setExpression((Expression) node.childAt(2).accept(this));
+        Statement thenBranch = (Statement) node.childAt(4).accept(this);
+        if (thenBranch != null) ifStatement.setThenStatement(thenBranch);
+        return ifStatement;
+    }
+
+    // Statement: Identifier ":" Statement
+    private LabeledStatement visitLabelStmt(NonterminalNode node) {
+        LabeledStatement labeledStatement = ast.newLabeledStatement();
+        labeledStatement.setLabel((SimpleName) node.childAt(0).accept(this));
+        labeledStatement.setBody((Statement) node.childAt(2).accept(this));
+        return labeledStatement;
+    }
+
+    // Statement: "try" ResourceSpecification Block CatchClause* Finally?
+    private Object visitTryWithResourcesStmt(NonterminalNode node) {
+        TryStatement tryStatement = ast.newTryStatement();
+        tryStatement.resources().addAll((List<Expression>) node.childAt(1).accept(this));
+        tryStatement.setBody((Block) node.childAt(2).accept(this));
+        tryStatement.catchClauses().addAll((List<CatchClause>) node.childAt(3).accept(this));
+
+        Block block = (Block) node.childAt(4).accept(this);
+        if (block != null) {
+            tryStatement.setFinally(block);
+        }
+        return tryStatement;
+    }
+
+    // Statement: "try" Block CatchClause* Finally
+    private TryStatement visitTryFinally(NonterminalNode node) {
+        TryStatement tryStatement = ast.newTryStatement();
+        tryStatement.setBody((Block) node.childAt(1).accept(this));
+        tryStatement.catchClauses().addAll((List<CatchClause>) node.childAt(2).accept(this));
+        tryStatement.setFinally((Block) node.childAt(3).accept(this));
+        return tryStatement;
+    }
+
+    // Statement: "try" Block CatchClause+
+    private TryStatement visitTryStmt(NonterminalNode node) {
+        TryStatement tryStatement = ast.newTryStatement();
+        tryStatement.setBody((Block) node.childAt(1).accept(this));
+        tryStatement.catchClauses().addAll((List<CatchClause>) node.childAt(2).accept(this));
+        return tryStatement;
+    }
+
+    // Statement: "throw" Expression ";"
+    private ThrowStatement visitThrowStmt(NonterminalNode node) {
+        ThrowStatement throwStatement = ast.newThrowStatement();
+        throwStatement.setExpression((Expression) node.childAt(1).accept(this));
+        return throwStatement;
+    }
+
+    // SynchronizedStatement: "synchronized" "(" Expression ")" Block
+    private SynchronizedStatement visitSynchronizedStmt(NonterminalNode node) {
+        SynchronizedStatement synchronizedStatement = ast.newSynchronizedStatement();
+        synchronizedStatement.setExpression((Expression) node.childAt(2).accept(this));
+        synchronizedStatement.setBody((Block) node.childAt(4).accept(this));
+        return synchronizedStatement;
+    }
+
+    // Statement: "return" Expression? ";"
+    private ReturnStatement visitReturnStatement(NonterminalNode node) {
+        ReturnStatement returnStatement = ast.newReturnStatement();
+        Expression expression = (Expression) node.childAt(1).accept(this);
+        if (expression != null) {
+            returnStatement.setExpression(expression);
+        }
+        return returnStatement;
+    }
+
+    // Statement: "continue" Identifier? ";"
+    private ContinueStatement visitContinueStmt(NonterminalNode node) {
+        ContinueStatement continueStatement = ast.newContinueStatement();
+        SimpleName identifier = (SimpleName) node.childAt(1).accept(this);
+        if (identifier != null) {
+            continueStatement.setLabel(identifier);
+        }
+        return continueStatement;
+    }
+
+    // Statement: "break" Identifier? ";"
+    private BreakStatement visitBreakStmt(NonterminalNode node) {
+        BreakStatement breakStatement = ast.newBreakStatement();
+
+        SimpleName identifier = (SimpleName) node.childAt(1).accept(this);
+        if (identifier != null) {
+            breakStatement.setLabel(identifier);
+        }
+        return breakStatement;
+    }
+
+    // Statement: "do" Statement "while" "(" Expression ")" ";"
+    private DoStatement visitDoStmt(NonterminalNode node) {
+        DoStatement doStatement = ast.newDoStatement();
+        doStatement.setBody((Statement) node.childAt(1).accept(this));
+        doStatement.setExpression((Expression) node.childAt(4).accept(this));
+        return doStatement;
+    }
+
+    // Statement: "switch" "(" Expression ")" "{" SwitchBlockStatementGroup* SwitchLabel* "}"
+    private SwitchStatement visitSwitchStmt(NonterminalNode node) {
+        SwitchStatement switchStatement = ast.newSwitchStatement();
+        switchStatement.setExpression((Expression) node.childAt(2).accept(this));
+
+        List<Statement> statements = node.childAt(5).children().stream().flatMap(stmt -> getSwitchBlockStatements(stmt).stream()).collect(toList());
+        switchStatement.statements().addAll(statements);
+        switchStatement.statements().addAll((List<Statement>) node.childAt(6).accept(this));
+        return switchStatement;
+    }
+
+    // Statement: "assert" Expression (":" Expression)? ";"
+    private AssertStatement visitAssertStmt(NonterminalNode node) {
+        AssertStatement assertStatement = ast.newAssertStatement();
+        assertStatement.setExpression((Expression) node.childAt(1).accept(this));
+
+        Expression message = (Expression) node.childAt(2).accept(this);
+        if (message != null) {
+            assertStatement.setMessage(message);
+        }
+        return assertStatement;
+    }
+
+    // Statement: Expression ";"
+    private ExpressionStatement visitExpressionStmt(NonterminalNode node) {
+        return ast.newExpressionStatement((Expression) node.childAt(0).accept(this));
+    }
+
+    // Statement: ;
+    private EmptyStatement visitEmptyStmt(NonterminalNode node) {
+        return ast.newEmptyStatement();
+    }
+
+    // Statement: Block
+    private Block visitBlockStmt(NonterminalNode node) {
+        return (Block) node.childAt(0).accept(this);
+    }
+
+    // LocalVariableDeclarationStatement: VariableModifier* Type {VariableDeclarator ","}+ ";"
+    private VariableDeclarationStatement visitLocalVariableDeclarationStatement(NonterminalNode node) {
+        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
+        VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragments.get(0));
+        for (int i = 1; i < fragments.size(); i++) {
+            variableDeclarationStatement.fragments().add(fragments.get(i));
+        }
+        variableDeclarationStatement.setType((Type) node.childAt(1).accept(this));
+        variableDeclarationStatement.modifiers().addAll(getModifiers(node.childAt(0)));
+        return variableDeclarationStatement;
+    }
+
+    //  "{" BlockStatement* "}"
+    private Block visitBlock(NonterminalNode node) {
+        Block block = ast.newBlock();
+        List<ASTNode> blockStatements = (List<ASTNode>) node.childAt(1).accept(this);
+        for (ASTNode blockStatement : blockStatements) {
+            if (blockStatement instanceof TypeDeclaration) {
+                block.statements().add(ast.newTypeDeclarationStatement((TypeDeclaration) blockStatement));
+            } else {
+                block.statements().add(blockStatement);
+            }
+        }
+        return block;
+    }
+
+    //   Type
+    // | "void"
+    private Type visitResult(NonterminalNode node) {
+        if (node.childAt(0).getName().equals("Type")) {
+            return (Type) node.childAt(0).accept(this);
+        }
+        return ast.newPrimitiveType(PrimitiveType.VOID);
+    }
+
+    /*
+     * LastFormalParameter
+     *   : VariableModifier* Type "..." VariableDeclaratorId
+     *   | FormalParameter
+     */
+    private SingleVariableDeclaration visitLastFormalParameter(NonterminalNode node) {
+        if (node.children().size() == 1) { // Second alternative
+            return (SingleVariableDeclaration) node.childAt(0).accept(this);
+        }
+        SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+        singleVariableDeclaration.setType((Type) node.childAt(1).accept(this));
+        singleVariableDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        singleVariableDeclaration.setVarargs(true);
+        singleVariableDeclaration.setName((SimpleName) node.childAt(3).childAt(0).accept(this));
+        return singleVariableDeclaration;
+    }
+
+    // FormalParameter: VariableModifier* Type VariableDeclaratorId
+    private SingleVariableDeclaration visitFormalParameter(NonterminalNode node) {
+        SingleVariableDeclaration singleVariableDeclaration = ast.newSingleVariableDeclaration();
+        singleVariableDeclaration.setType((Type) node.childAt(1).accept(this));
+        singleVariableDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        ParseTreeNode variableDeclaratorId = node.childAt(2);
+        singleVariableDeclaration.extraDimensions().addAll(getDimensions(variableDeclaratorId.childAt(1)));
+        singleVariableDeclaration.setName((SimpleName) variableDeclaratorId.childAt(0).accept(this));
+        return singleVariableDeclaration;
+    }
+
+    // FormalParameterList: (FormalParameter ",")* LastFormalParameter
+    private List<SingleVariableDeclaration> visitFormalParameterList(NonterminalNode node) {
+        List<SingleVariableDeclaration> formalParameters = (List<SingleVariableDeclaration>) node.childAt(0).accept(this);
+        SingleVariableDeclaration lastFormalParameter = (SingleVariableDeclaration) node.childAt(1).accept(this);
+        formalParameters.add(lastFormalParameter);
+        return formalParameters;
+    }
+
+    // Throws: "throws" {QualifiedIdentifier ","}+
+    private Object visitThrows(NonterminalNode node) {
+        return ((List<Name>) node.childAt(1).accept(this)).stream().map(name -> ast.newSimpleType(name)).collect(toList());
+    }
+
+    // MethodDeclaration: MethodModifier* TypeParameters? Result MethodDeclarator Throws? MethodBody
+    // MethodDeclarator:  Identifier "(" FormalParameterList? ")" ("[" "]")*
+    private MethodDeclaration visitMethodDeclaration(NonterminalNode node) {
+        MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
+
+        methodDeclaration.modifiers().addAll((List<IExtendedModifier>) node.childAt(0).accept(this));
+
+        List<Type> typeParameters = (List<Type>) node.childAt(1).accept(this);
+        if (typeParameters != null) {
+            methodDeclaration.typeParameters().addAll(typeParameters);
+        }
+
+        methodDeclaration.setReturnType2((Type) node.childAt(2).accept(this));
+
+        ParseTreeNode methodDeclarator = node.childAt(3);
+        methodDeclaration.setName((SimpleName) methodDeclarator.childAt(0).accept(this));
+
+        List<SingleVariableDeclaration> parameters = (List<SingleVariableDeclaration>) methodDeclarator.childAt(2).accept(this);
+        if (parameters != null) {
+            methodDeclaration.parameters().addAll(parameters);
+        }
+
+        methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(4)));
+
+        List<Type> exceptionTypes = (List<Type>) node.childAt(4).accept(this);
+        if (exceptionTypes != null) {
+            methodDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
+        }
+
+        methodDeclaration.setBody((Block) node.childAt(5).accept(this));
+
+        return methodDeclaration;
+    }
+
+    // EnumConstant: Annotation* Identifier Arguments? ClassBody?
+    private EnumConstantDeclaration visitEnumConstant(NonterminalNode node) {
+        EnumConstantDeclaration enumConstantDeclaration = ast.newEnumConstantDeclaration();
+
+        enumConstantDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        enumConstantDeclaration.setName(getIdentifier(node.childAt(1)));
+
+        List<Expression> arguments = (List<Expression>) node.childAt(2).accept(this);
+        if (arguments != null) {
+            enumConstantDeclaration.arguments().addAll(arguments);
+        }
+
+        List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.childAt(3).accept(this);
+        if (bodyDeclarations != null) {
+            AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
+            anonymousClassDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+            enumConstantDeclaration.setAnonymousClassDeclaration(anonymousClassDeclaration);
+        }
+
+        return enumConstantDeclaration;
+    }
+
+    // NormalClassDeclaration: ClassModifier* "class" Identifier TypeParameters? ("extends" Type)? ("implements" TypeList)? ClassBody;
+    private TypeDeclaration visitNormalClassDeclaration(NonterminalNode node) {
+        TypeDeclaration classDeclaration = ast.newTypeDeclaration();
+        classDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        classDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+
+        List<Type> typeParameters = (List<Type>) node.childAt(3).accept(this);
+        if (typeParameters != null) {
+            classDeclaration.typeParameters().addAll(typeParameters);
+        }
+
+        Type type = (Type) node.childAt(4).accept(this);
+        if (type != null) { // ("extends" Type)?
+            classDeclaration.setSuperclassType(type);
+        }
+
+        List<Type> superInterfaces = (List<Type>) node.childAt(5).accept(this);
+        if (superInterfaces != null) {
+            classDeclaration.superInterfaceTypes().addAll(superInterfaces);
+        }
+
+        classDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.childAt(6).accept(this));
+
+        return classDeclaration;
+    }
+
+    // CompilationUnit: PackageDeclaration? ImportDeclaration* TypeDeclaration*
+    private CompilationUnit visitCompilationUnit(NonterminalNode node) {
+        CompilationUnit compilationUnit = ast.newCompilationUnit();
+        PackageDeclaration packageDeclaration = (PackageDeclaration) node.childAt(0).accept(this);
+        if (packageDeclaration != null) {
+            compilationUnit.setPackage(packageDeclaration);
+        }
+        compilationUnit.imports().addAll((List<ImportDeclaration>) node.childAt(1).accept(this));
+        compilationUnit.types().addAll((List<TypeDeclaration>) node.childAt(2).accept(this));
+        return compilationUnit;
+    }
+
+    // PackageDeclaration: Annotation* "package"  QualifiedIdentifier ";"
+    private PackageDeclaration visitPackageDeclaration(NonterminalNode node) {
+        PackageDeclaration packageDeclaration = ast.newPackageDeclaration();
+        packageDeclaration.annotations().addAll(getModifiers(node.childAt(0)));
+        packageDeclaration.setName((Name) node.childAt(2).accept(this));
+        return packageDeclaration;
+    }
+
+    // ImportDeclaration: "import"  "static"?  QualifiedIdentifier ("." "*")? ";"
+    private ImportDeclaration visitImportDeclaration(NonterminalNode node) {
+        ImportDeclaration importDeclaration = ast.newImportDeclaration();
+        if (node.childAt(1).children().size() > 0) { // "static"?
+            importDeclaration.setStatic(true);
+        }
+        importDeclaration.setName((Name) node.childAt(2).accept(this));
+        if (node.childAt(3).children().size() > 0) { // ("." "*")?
+            importDeclaration.setOnDemand(true);
+        }
+        return importDeclaration;
+    }
+
+    // EnumDeclaration: ClassModifier* "enum" Identifier ("implements" TypeList)? EnumBody
+    private Object visitEnumDeclaration(NonterminalNode node) {
+        EnumDeclaration enumDeclaration = ast.newEnumDeclaration();
+        enumDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        enumDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+
+        List<Type> typeList = (List<Type>) node.childAt(3).accept(this);
+        if (typeList != null) {
+            enumDeclaration.superInterfaceTypes().addAll(typeList);
+        }
+
+        ParseTreeNode enumBodyNode = node.childAt(4);
+        // "{" {EnumConstant ","}* ","? EnumBodyDeclarations? "}"
+        List<BodyDeclaration> enumConstants = (List<BodyDeclaration>) enumBodyNode.childAt(1).accept(this);
+        enumDeclaration.enumConstants().addAll(enumConstants);
+
+        List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) enumBodyNode.childAt(3).accept(this);
+        if (bodyDeclarations != null) {
+            enumDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+        }
+
+        return enumDeclaration;
+    }
+
+    // NormalInterfaceDeclaration: InterfaceModifier* "interface" Identifier TypeParameters? ("extends" TypeList)? InterfaceBody
+    private Object visitNormalInterfaceDeclaration(NonterminalNode node) {
+        TypeDeclaration interfaceDeclaration = ast.newTypeDeclaration();
+        interfaceDeclaration.setInterface(true);
+        interfaceDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        interfaceDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+
+        List<TypeParameter> typeParameters = (List<TypeParameter>) node.childAt(3).accept(this);
+        if (typeParameters != null) {
+            interfaceDeclaration.typeParameters().addAll(typeParameters);
+        }
+
+        List<Type> superInterfaces = (List<Type>) node.childAt(4).accept(this);
+        if (superInterfaces != null) {
+            interfaceDeclaration.superInterfaceTypes().addAll(superInterfaces);
+        }
+
+        List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.childAt(5).accept(this);
+        interfaceDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+
+        return interfaceDeclaration;
+    }
+
+    // AbstractMethodDeclaration: AbstractMethodModifier* TypeParameters? Result MethodDeclarator Throws? ";"
+    private MethodDeclaration visitAbstractMethodDeclaration(NonterminalNode node) {
+        MethodDeclaration methodDeclaration = ast.newMethodDeclaration();
+        methodDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+
+        List<TypeParameter> typeParameters = (List<TypeParameter>) node.childAt(1).accept(this);
+        if (typeParameters != null) {
+            methodDeclaration.typeParameters().addAll(typeParameters);
+        }
+
+        Type returnType = (Type) node.childAt(2).accept(this);
+        methodDeclaration.setReturnType2(returnType);
+
+        // Identifier "(" FormalParameterList? ")" ("[" "]")*
+        ParseTreeNode methodDeclarator = node.childAt(3);
+        methodDeclaration.setName((SimpleName) methodDeclarator.childAt(0).accept(this));
+
+        List<SingleVariableDeclaration> parameters = (List<SingleVariableDeclaration>) methodDeclarator.childAt(2).accept(this);
+        if (parameters != null) {
+            methodDeclaration.parameters().addAll(parameters);
+        }
+
+        methodDeclaration.extraDimensions().addAll(getDimensions(methodDeclarator.childAt(4)));
+
+        List<Type> exceptionTypes = (List<Type>) node.childAt(4).accept(this);
+        if (exceptionTypes != null) {
+            methodDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
+        }
+
+        return methodDeclaration;
+    }
+
+    // AnnotationTypeDeclaration: InterfaceModifier* "@" "interface" Identifier AnnotationTypeBody
+    private AnnotationTypeDeclaration visitAnnotationTypeDeclaration(NonterminalNode node) {
+        AnnotationTypeDeclaration annotationTypeDeclaration = ast.newAnnotationTypeDeclaration();
+        annotationTypeDeclaration.setName(getIdentifier(node.childAt(3)));
+        annotationTypeDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+
+        annotationTypeDeclaration.bodyDeclarations().addAll((List<BodyDeclaration>) node.childAt(4).accept(this));
+        return annotationTypeDeclaration;
+    }
+
+    // ConstantDeclaration: ConstantModifier* Type {VariableDeclarator ","}+ ";"
+    private FieldDeclaration visitConstantDeclaration(NonterminalNode node) {
+        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
+        FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
+        fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
+        fieldDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        fieldDeclaration.setType((Type) node.childAt(1).accept(this));
+        return fieldDeclaration;
+    }
+
+    // AnnotationMethodDeclaration: AbstractMethodModifier* Type Identifier "(" ")" ("[" "]")* DefaultValue? ";"
+    private AnnotationTypeMemberDeclaration visitAnnotationMethodDeclaration(NonterminalNode node) {
+        AnnotationTypeMemberDeclaration annotationTypeMemberDeclaration = ast.newAnnotationTypeMemberDeclaration();
+        annotationTypeMemberDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        annotationTypeMemberDeclaration.setType((Type) node.childAt(1).accept(this));
+        annotationTypeMemberDeclaration.setName(getIdentifier(node.childAt(2)));
+        Expression expression = (Expression) node.childAt(6).accept(this);
+        annotationTypeMemberDeclaration.setDefault(expression);
+        return annotationTypeMemberDeclaration;
+    }
+
+    // Annotation: "@" QualifiedIdentifier Values?
+    private Annotation visitAnnotation(NonterminalNode node) {
+        Name name = (Name) node.childAt(1).accept(this);
+
+        if (node.childAt(2).children().size() == 0) {
+            MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
+            markerAnnotation.setTypeName(name);
+            return markerAnnotation;
+        }
+
+        List<Object> values = (List<Object>) node.childAt(2).accept(this);
+
+        if (values == null) {
+            values = emptyList();
+        }
+
+        if (values.size() == 1 && values.get(0) instanceof Expression) {
+            SingleMemberAnnotation singleMemberAnnotation = ast.newSingleMemberAnnotation();
+            singleMemberAnnotation.setTypeName(name);
+            singleMemberAnnotation.setValue((Expression) values.get(0));
+            return singleMemberAnnotation;
+        }
+
+        NormalAnnotation normalAnnotation = ast.newNormalAnnotation();
+        normalAnnotation.setTypeName(name);
+        normalAnnotation.values().addAll(values);
+        return normalAnnotation;
+    }
+
+    // ArrayInitializer: ElementValueArrayInitializer: "{" { ElementValue "," }* ","? "}"
+    private ArrayInitializer visitElementValueArrayInitializer(NonterminalNode node) {
+        ArrayInitializer arrayInitializer = ast.newArrayInitializer();
+        arrayInitializer.expressions().addAll((List<Expression>) node.childAt(1).accept(this));
+        return arrayInitializer;
+    }
+
+    // ElementValuePair: Identifier "=" ElementValue
+    private MemberValuePair visitElementValuePair(NonterminalNode node) {
+        MemberValuePair memberValuePair = ast.newMemberValuePair();
+        memberValuePair.setName(getIdentifier(node.childAt(0)));
+        memberValuePair.setValue((Expression) node.childAt(2).accept(this));
+        return memberValuePair;
+    }
+
+    // FieldDeclaration: FieldModifier* Type {VariableDeclarator ","}+ ";"
+    private FieldDeclaration visitFieldDeclaration(NonterminalNode node) {
+        List<VariableDeclarationFragment> fragments = (List<VariableDeclarationFragment>) node.childAt(2).accept(this);
+        FieldDeclaration fieldDeclaration = ast.newFieldDeclaration(fragments.get(0));
+        fieldDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+        fieldDeclaration.setType((Type) node.childAt(1).accept(this));
+        fieldDeclaration.fragments().addAll(fragments.subList(1, fragments.size()));
+        return fieldDeclaration;
+    }
+
+    // VariableDeclarator: VariableDeclaratorId ("=" VariableInitializer)?
+    private VariableDeclarationFragment visitVariableDeclarator(NonterminalNode node) {
+        VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+        ParseTreeNode variableDeclaratorIdNode = node.childAt(0);
+        fragment.setName((SimpleName) variableDeclaratorIdNode.childAt(0).accept(this));
+        fragment.extraDimensions().addAll(getDimensions(variableDeclaratorIdNode.childAt(1)));
+
+        Expression expression = (Expression) node.childAt(1).accept(this);
+        if (expression != null) {
+            fragment.setInitializer(expression);
+        }
+        return fragment;
+    }
+
     private Object visitChildren(ParseTreeNode node) {
         List<Object> result = node.children().stream()
                 .map(child -> child.accept(this))
@@ -1274,8 +1422,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             return ((Plus) symbol).getSymbol();
         } else if (symbol instanceof Opt) {
             return ((Opt) symbol).getSymbol();
-        }
-        else throw new RuntimeException("Unsupported symbol " + symbol);
+        } else throw new RuntimeException("Unsupported symbol " + symbol);
     }
 
     private SimpleName getIdentifier(ParseTreeNode node) {
