@@ -355,13 +355,14 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     // "{" ExplicitConstructorInvocation? BlockStatement* "}"
     private Block visitConstructorBody(NonterminalNode node) {
         Block block = ast.newBlock();
-        List<Statement> statements = new ArrayList<>();
         Statement explicitConstructorInvocation = (Statement) node.childAt(1).accept(this);
+        List<Statement> statements = (List<Statement>) node.childAt(2).accept(this);
+        List<Statement> body = new ArrayList<>(statements.size() + 1);
         if (explicitConstructorInvocation != null) {
-            statements.add(explicitConstructorInvocation);
+            body.add(explicitConstructorInvocation);
         }
-        statements.addAll((List<Statement>) node.childAt(2).accept(this));
-        block.statements().addAll(statements);
+        body.addAll(statements);
+        block.statements().addAll(body);
         return block;
     }
 
@@ -536,9 +537,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     // "{" ClassBodyDeclaration* "}"
     private List<BodyDeclaration> visitClassBody(NonterminalNode node) {
-        List<BodyDeclaration> bodyDeclarations = new ArrayList<>();
-        bodyDeclarations.addAll((List<BodyDeclaration>) node.childAt(1).accept(this));
-        return bodyDeclarations;
+        return (List<BodyDeclaration>) node.childAt(1).accept(this);
     }
 
     // '<' {TypeArgument ","}+ '>'
@@ -824,10 +823,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private List<Type> getQualifiedTypes(ParseTreeNode node) {
-        List<Type> types = new ArrayList<>();
-
         List<Name> qualifiedIdentifiers = (List<Name>) node.accept(this);
 
+        List<Type> types = new ArrayList<>(qualifiedIdentifiers.size());
         for (int i = 0; i < qualifiedIdentifiers.size(); i++) {
             Name name = qualifiedIdentifiers.get(i);
             types.add(ast.newSimpleType(name));
@@ -1480,8 +1478,10 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private Object visitChildren(ParseTreeNode node) {
-        List<Object> result = new ArrayList<>();
-        for (int i = 0; i < node.children().size(); i++) {
+        int size = node.children().size();
+        List<Object> result = new ArrayList<>(size);
+
+        for (int i = 0; i < size; i++) {
             ParseTreeNode child = node.childAt(i);
             Object childResult = child.accept(this);
             if (childResult != null) {
@@ -1526,8 +1526,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 }
                 return result;
             } else {
-                List<Object> result = new ArrayList<>();
-                for (int i = 0; i < node.children().size(); i++) {
+                int size = node.children().size();
+                List<Object> result = new ArrayList<>(size);
+                for (int i = 0; i < size; i++) {
                     ParseTreeNode child = node.childAt(i);
                     result.addAll((List<Object>) child.accept(this));
                 }
@@ -1579,11 +1580,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     // SwitchLabel+ BlockStatement+
     private List<Statement> getSwitchBlockStatements(ParseTreeNode node) {
-        List<Statement> switchLabels = (List<Statement>) node.childAt(0).accept(this);
-        List<Statement> blockStatements = (List<Statement>) node.childAt(1).accept(this);
-        List<Statement> result = new ArrayList<>(switchLabels);
-        result.addAll(blockStatements);
-        return result;
+        List<Statement> statements = (List<Statement>) node.childAt(0).accept(this);
+        statements.addAll((List<Statement>) node.childAt(1).accept(this));
+        return statements;
     }
 
     // ('[' ']')*
@@ -1594,8 +1593,9 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     private List<Dimension> getDimensions(ParseTreeNode node) {
         if (node == null) return emptyList();
 
-        List<Dimension> dimensions = new ArrayList<>();
-        for (int i = 0; i < getDimensionsSize(node); i++) {
+        int size = getDimensionsSize(node);
+        List<Dimension> dimensions = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
             dimensions.add(ast.newDimension());
         }
         return dimensions;
