@@ -1,5 +1,6 @@
 package iguana;
 
+import iguana.utils.collections.key.IntKey2;
 import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.Block;
@@ -7,7 +8,9 @@ import org.iguana.grammar.symbol.*;
 import org.iguana.parsetree.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -209,18 +212,18 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private Name visitIdentifier(NonterminalNode node) {
-        return ast.newSimpleName(node.childAt(0).getText(input));
+        return ast.newSimpleName(getText(node.childAt(0)));
     }
 
     private PrimitiveType visitPrimitiveType(NonterminalNode node) {
-        return ast.newPrimitiveType(PrimitiveType.toCode(node.getText(input)));
+        return ast.newPrimitiveType(PrimitiveType.toCode(getText(node)));
     }
 
     private Object visitModifier(NonterminalNode node) {
         if (node.hasChild("Annotation")) {
             return node.childAt(0).accept(this);
         } else {
-            return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
+            return ast.newModifier(Modifier.ModifierKeyword.toKeyword(getText(node)));
         }
     }
 
@@ -255,7 +258,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 WildcardType wildcardType = ast.newWildcardType();
                 Type type = (Type) node.childAt(1).accept(this);
                 if (type != null) {
-                    String superOrExtends = node.childAt(1).childAt(0).childAt(0).getText(input);
+                    String superOrExtends = getText(node.childAt(1).childAt(0).childAt(0));
                     if (superOrExtends.equals("super")) {
                         wildcardType.setUpperBound(false);
                     }
@@ -398,22 +401,22 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         switch (node.getGrammarDefinition().getLabel()) {
             case "integerLiteral":
             case "floatLiteral": {
-                return ast.newNumberLiteral(node.getText(input));
+                return ast.newNumberLiteral(getText(node));
             }
 
             case "booleanLiteral": {
-                return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText(input)));
+                return ast.newBooleanLiteral(Boolean.parseBoolean(getText(node)));
             }
 
             case "characterLiteral": {
                 CharacterLiteral characterLiteral = ast.newCharacterLiteral();
-                characterLiteral.setEscapedValue(node.getText(input));
+                characterLiteral.setEscapedValue(getText(node));
                 return characterLiteral;
             }
 
             case "stringLiteral": {
                 StringLiteral stringLiteral = ast.newStringLiteral();
-                stringLiteral.setEscapedValue(node.getText(input));
+                stringLiteral.setEscapedValue(getText(node));
                 return stringLiteral;
             }
 
@@ -608,7 +611,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             InfixExpression infixExpression = ast.newInfixExpression();
             infixExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
             infixExpression.setRightOperand((Expression) node.childAt(2).accept(this));
-            infixExpression.setOperator(InfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
+            infixExpression.setOperator(InfixExpression.Operator.toOperator(getText(node.childAt(1))));
             return infixExpression;
         }
 
@@ -664,7 +667,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         Assignment assignment = ast.newAssignment();
         assignment.setLeftHandSide((Expression) node.childAt(0).accept(this));
         assignment.setRightHandSide((Expression) node.childAt(2).accept(this));
-        assignment.setOperator(Assignment.Operator.toOperator(node.childAt(1).getText(input)));
+        assignment.setOperator(Assignment.Operator.toOperator(getText(node.childAt(1))));
         return assignment;
     }
 
@@ -710,7 +713,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     private Expression visitPrefix(NonterminalNode node) {
         PrefixExpression prefixExpression = ast.newPrefixExpression();
         prefixExpression.setOperand((Expression) node.childAt(1).accept(this));
-        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(node.childAt(0).getText(input)));
+        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(getText(node.childAt(0))));
         return prefixExpression;
     }
 
@@ -718,7 +721,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     private PostfixExpression visitPostfix(NonterminalNode node) {
         PostfixExpression postfixExpression = ast.newPostfixExpression();
         postfixExpression.setOperand((Expression) node.childAt(0).accept(this));
-        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
+        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(getText(node.childAt(1))));
         return postfixExpression;
     }
 
@@ -1500,6 +1503,12 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         return result;
     }
 
+    private Map<IntKey2, String> stringCache = new HashMap<>();
+
+    private String getText(ParseTreeNode node) {
+        return input.subString(node.getStart(), node.getEnd());
+    }
+
     @Override
     public ASTNode visitAmbiguityNode(AmbiguityNode node) {
         throw new RuntimeException("Ambiguity");
@@ -1571,7 +1580,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private SimpleName getIdentifier(ParseTreeNode node) {
-        return ast.newSimpleName(node.getText(input));
+        return ast.newSimpleName(getText(node));
     }
 
     private List<IExtendedModifier> getModifiers(ParseTreeNode node) {
