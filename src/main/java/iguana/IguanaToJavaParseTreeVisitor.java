@@ -98,68 +98,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             case "LocalVariableDeclarationStatement":
                 return visitLocalVariableDeclarationStatement(node);
 
-            case "Statement": {
-
-                switch (node.getGrammarDefinition().getLabel()) {
-
-                    case "blockStmt":
-                        return visitBlockStmt(node);
-
-                    case "emptyStmt":
-                        return visitEmptyStmt(node);
-
-                    case "expressionStmt":
-                        return visitExpressionStmt(node);
-
-                    case "assertStmt":
-                        return visitAssertStmt(node);
-
-                    case "switchStmt":
-                        return visitSwitchStmt(node);
-
-                    case "doStmt":
-                        return visitDoStmt(node);
-
-                    case "breakStmt":
-                        return visitBreakStmt(node);
-
-                    case "continueStmt":
-                        return visitContinueStmt(node);
-
-                    case "returnStmt":
-                        return visitReturnStatement(node);
-
-                    case "synchronizedStmt":
-                        return visitSynchronizedStmt(node);
-
-                    case "throwStmt":
-                        return visitThrowStmt(node);
-
-                    case "tryStmt":
-                        return visitTryStmt(node);
-
-                    case "tryFinally":
-                        return visitTryFinally(node);
-
-                    case "tryWithResourcesStmt":
-                        return visitTryWithResourcesStmt(node);
-
-                    case "labelStmt":
-                        return visitLabelStmt(node);
-
-                    case "ifStmt":
-                        return visitIfStmt(node);
-
-                    case "ifElseStmt":
-                        return visitIfElseStmt(node);
-
-                    case "whileStmt":
-                        return visitWhileStmt(node);
-
-                    case "forStmt":
-                        return visitForStmt(node);
-                }
-            }
+            case "Statement":
+                return visitStatement(node);
 
             case "ForInit":
                 return visitForInit(node);
@@ -179,479 +119,74 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             case "Finally":
                 return visitFinally(node);
 
-            case "Expression": {
-                // Infix expression
-                if (node.getGrammarDefinition().getLabel() == null || node.getGrammarDefinition().getLabel().equals("comparisonExpr")) {
-                    InfixExpression infixExpression = ast.newInfixExpression();
-                    infixExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
-                    infixExpression.setRightOperand((Expression) node.childAt(2).accept(this));
-                    infixExpression.setOperator(InfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
-                    return infixExpression;
-                }
-
-                switch (node.getGrammarDefinition().getLabel()) {
-
-                    // Expression "." Selector
-                    case "fieldAccess": {
-                        Expression expression = (Expression) node.childAt(0).accept(this);
-                        return getFieldAccess(expression, (NonterminalNode) node.childAt(2));
-                    }
-
-                    // MethodInvocation
-                    case "methodCall": {
-                        return node.childAt(0).accept(this);
-                    }
-
-                    // Expression "[" Expression "]"
-                    case "arrayAccess": {
-                        ArrayAccess arrayAccess = ast.newArrayAccess();
-                        arrayAccess.setArray((Expression) node.childAt(0).accept(this));
-                        arrayAccess.setIndex((Expression) node.childAt(2).accept(this));
-                        return arrayAccess;
-                    }
-
-                    // Expression ("++" | "--")
-                    case "postfix": {
-                        PostfixExpression postfixExpression = ast.newPostfixExpression();
-                        postfixExpression.setOperand((Expression) node.childAt(0).accept(this));
-                        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
-                        return postfixExpression;
-                    }
-
-                    // ("+" !>> "+" | "-" !>> "-" | "++" | "--" | "!" | "~") Expression
-                    case "prefix": {
-                        PrefixExpression prefixExpression = ast.newPrefixExpression();
-                        prefixExpression.setOperand((Expression) node.childAt(1).accept(this));
-                        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(node.childAt(0).getText(input)));
-                        return prefixExpression;
-                    }
-
-                    // "new" (ClassInstanceCreationExpression | ArrayCreationExpression)
-                    case "newClass": {
-                        return node.childAt(1).accept(this);
-                    }
-
-                    // "(" Type ")" Expression
-                    case "primitiveCastExpr": {
-                        CastExpression castExpression = ast.newCastExpression();
-                        castExpression.setType((Type) node.childAt(1).accept(this));
-                        castExpression.setExpression((Expression) node.childAt(3).accept(this));
-                        return castExpression;
-                    }
-
-                    // "(" ReferenceType ")" Expression
-                    case "castExpr": {
-                        CastExpression castExpression = ast.newCastExpression();
-                        castExpression.setType((Type) node.childAt(1).accept(this));
-                        castExpression.setExpression((Expression) node.childAt(3).accept(this));
-                        return castExpression;
-                    }
-
-                    // Expression "instanceof" Type
-                    case "instanceOfExpr": {
-                        InstanceofExpression instanceofExpression = ast.newInstanceofExpression();
-                        instanceofExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
-                        instanceofExpression.setRightOperand((Type) node.childAt(2).accept(this));
-                        return instanceofExpression;
-                    }
-
-                    // Expression "?" Expression ":" Expression
-                    case "conditionalExpr": {
-                        ConditionalExpression conditionalExpression = ast.newConditionalExpression();
-                        conditionalExpression.setExpression((Expression) node.childAt(0).accept(this));
-                        conditionalExpression.setThenExpression((Expression) node.childAt(2).accept(this));
-                        conditionalExpression.setElseExpression((Expression) node.childAt(4).accept(this));
-                        return conditionalExpression;
-                    }
-
-                    // Expression AssignmentOperator Expression
-                    case "assignmentExpr": {
-                        Assignment assignment = ast.newAssignment();
-                        assignment.setLeftHandSide((Expression) node.childAt(0).accept(this));
-                        assignment.setRightHandSide((Expression) node.childAt(2).accept(this));
-                        assignment.setOperator(Assignment.Operator.toOperator(node.childAt(1).getText(input)));
-                        return assignment;
-                    }
-
-                    case "primaryExpr": {
-                        return node.childAt(0).accept(this);
-                    }
-
-                    // Expression op Expression
-                    default:
-                        throw new RuntimeException("Unexpected exception type");
-                }
-            }
-
-            // TypeArguments? TypeDeclSpecifier TypeArgumentsOrDiamond? Arguments ClassBody?
-            case "ClassInstanceCreationExpression": {
-                ClassInstanceCreation classInstanceCreation = ast.newClassInstanceCreation();
-
-                List<Type> typeArguments = (List<Type>) node.childAt(0).accept(this);
-                if (typeArguments != null) {
-                    classInstanceCreation.typeArguments().addAll(typeArguments);
-                }
-
-                Type type = (Type) node.childAt(1).accept(this);
-                List<Type> typeArgumentsOrDiamond = (List<Type>) node.childAt(2).accept(this);
-                if (typeArgumentsOrDiamond != null) {
-                    type = ast.newParameterizedType(type);
-                    ((ParameterizedType) type).typeArguments().addAll(typeArgumentsOrDiamond);
-                }
-
-                classInstanceCreation.setType(type);
-                classInstanceCreation.arguments().addAll((List<Expression>) node.childAt(3).accept(this));
-
-                List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.childAt(4).accept(this);
-                if (bodyDeclarations != null) {
-                    AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
-                    anonymousClassDeclaration.bodyDeclarations().addAll(bodyDeclarations);
-                    classInstanceCreation.setAnonymousClassDeclaration(anonymousClassDeclaration);
-                }
-                return classInstanceCreation;
-            }
-
-            // TypeDeclSpecifier: Identifier (TypeArguments? "." Identifier)*
-            case "TypeDeclSpecifier": {
-                Type type = ast.newSimpleType((SimpleName) node.childAt(0).accept(this));
-
-                List<Object> rest = (List<Object>) node.childAt(1).accept(this);
-
-                for (Object n : rest) {
-                    if (n instanceof List) { // TypeArguments
-                        type = ast.newParameterizedType(type);
-                        ((ParameterizedType) type).typeArguments().addAll((List<Type>) n);
-                    } else { // Identifier
-                        type = ast.newQualifiedType(type, (SimpleName) n);
-                    }
-                }
-
-                return type;
-            }
-
-            // TypeArgumentsOrDiamond
-            //        = "<" ">"
-            //        | TypeArguments
-            case "TypeArgumentsOrDiamond": {
-                if (node.childAt(0).getName().equals("TypeArguments")) {
-                    return node.childAt(0).accept(this);
-                }
-                return emptyList();
-            }
-
-            // '<' {TypeArgument ","}+ '>'
-            case "TypeArguments": {
-                return node.childAt(1).accept(this);
-            }
-
-            // "{" ClassBodyDeclaration* "}"
-            case "ClassBody": {
-                List<BodyDeclaration> bodyDeclarations = new ArrayList<>();
-                bodyDeclarations.addAll((List<BodyDeclaration>) node.childAt(1).accept(this));
-                return bodyDeclarations;
-            }
-
-            /*
-             * ArrayCreationExpression
-             *   = (PrimitiveType | ReferenceType) ("[" Expression "]")+ ("[" "]")*
-             *   | (PrimitiveType | ReferenceTypeNonArrayType) ("[" "]")+ ArrayInitializer
-             */
-            case "ArrayCreationExpression": {
-                ArrayCreation arrayCreation = ast.newArrayCreation();
-                if (node.hasChild("ArrayInitializer")) { // Second alternative
-                    int dimensions = getDimensionsSize(node.childAt(1));
-                    arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
-                    arrayCreation.setInitializer((ArrayInitializer) node.childAt(2).accept(this));
-                } else {
-                    List<Expression> expressions = (List<Expression>) node.childAt(1).accept(this);
-                    int dimensions = getDimensionsSize(node.childAt(2)) + expressions.size();
-                    arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
-                    arrayCreation.dimensions().addAll(expressions);
-                }
-                return arrayCreation;
-            }
-
-            // TypeDeclSpecifier TypeArguments?
-            case "ReferenceTypeNonArrayType": {
-                Type type = (Type) node.childAt(0).accept(this);
-                List<Type> typeArguments = (List<Type>) node.childAt(1).accept(this);
-                if (typeArguments != null) {
-                    type = ast.newParameterizedType(type);
-                    ((ParameterizedType) type).typeArguments().addAll(typeArguments);
-                }
-                return type;
-            }
-
-            // "{"  {VariableInitializer ","}* ","? "}"
-            case "ArrayInitializer": {
-                ArrayInitializer arrayInitializer = ast.newArrayInitializer();
-                arrayInitializer.expressions().addAll((List<Expression>) node.childAt(1).accept(this));
-                return arrayInitializer;
-            }
-
-            case "Primary": {
-                switch (node.getGrammarDefinition().getLabel()) {
-
-                    case "literalPrimary": {
-                        return node.childAt(0).accept(this);
-                    }
-
-                    // (QualifiedIdentifier ".")? "this"
-                    case "thisPrimary": {
-                        ThisExpression thisExpression = ast.newThisExpression();
-                        Name qualifiedIdentifier = (Name) node.childAt(0).accept(this);
-                        if (qualifiedIdentifier != null) {
-                            thisExpression.setQualifier(qualifiedIdentifier);
-                        }
-                        return thisExpression;
-                    }
-
-                    case "superPrimary": {
-                        return node.childAt(1).accept(this);
-                    }
-
-                    case "idPrimary": {
-                        return getIdentifier(node.childAt(0));
-                    }
-
-                    case "typeLiteralPrimary": {
-                        TypeLiteral typeLiteral = ast.newTypeLiteral();
-                        Type type = (Type) node.childAt(0).accept(this);
-                        if (type == null) {
-                            type = ast.newPrimitiveType(PrimitiveType.VOID);
-                        }
-                        typeLiteral.setType(type);
-                        return typeLiteral;
-                    }
-
-                    // "(" Expression ")"
-                    case "parExprPrimary": {
-                        ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
-                        parenthesizedExpression.setExpression((Expression) node.childAt(1).accept(this));
-                        return parenthesizedExpression;
-                    }
-
-                    default:
-                        throw new RuntimeException("Unexpected primary " + node);
-                }
-            }
-
-            // "." NonWildTypeArguments? Identifier Arguments?
-            case "SuperSuffix": {
-                List<Expression> arguments = (List<Expression>) node.childAt(3).accept(this);
-                if (arguments != null) {
-                    SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
-                    superMethodInvocation.setName(getIdentifier(node.childAt(2)));
-                    superMethodInvocation.arguments().addAll(arguments);
-                    return superMethodInvocation;
-                } else {
-                    // "." NonWildTypeArguments? Identifier Arguments?
-                    SuperFieldAccess superFieldAccess = ast.newSuperFieldAccess();
-                    superFieldAccess.setName(getIdentifier(node.childAt(2)));
-                    return superFieldAccess;
-                }
-            }
-
-            // Identifier Arguments
-            case "MethodInvocation": {
-                MethodInvocation methodInvocation = ast.newMethodInvocation();
-                methodInvocation.setName((SimpleName) node.childAt(0).accept(this));
-                methodInvocation.arguments().addAll((List<Expression>) node.childAt(1).accept(this));
-                return methodInvocation;
-            }
-
-            case "Literal": {
-                switch (node.getGrammarDefinition().getLabel()) {
-                    case "integerLiteral":
-                    case "floatLiteral": {
-                        return ast.newNumberLiteral(node.getText(input));
-                    }
-
-                    case "booleanLiteral": {
-                        return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText(input)));
-                    }
-
-                    case "characterLiteral": {
-                        CharacterLiteral characterLiteral = ast.newCharacterLiteral();
-                        characterLiteral.setEscapedValue(node.getText(input));
-                        return characterLiteral;
-                    }
-
-                    case "stringLiteral": {
-                        StringLiteral stringLiteral = ast.newStringLiteral();
-                        stringLiteral.setEscapedValue(node.getText(input));
-                        return stringLiteral;
-                    }
-
-                    case "nullLiteral": {
-                        return ast.newNullLiteral();
-                    }
-                }
-            }
-
-            // ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? ConstructorBody
-            case "ConstructorDeclaration": {
-                MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
-                constructorDeclaration.setConstructor(true);
-                constructorDeclaration.setReturnType2(null);
-                constructorDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
-
-                List<TypeParameter> typeParameters = (List<TypeParameter>) node.childAt(1).accept(this);
-                if (typeParameters != null) {
-                    constructorDeclaration.typeParameters().addAll(typeParameters);
-                }
-                constructorDeclaration.setName((SimpleName) node.childAt(2).accept(this));
-
-                List<SingleVariableDeclaration> formalParameters = (List<SingleVariableDeclaration>) node.childAt(4).accept(this);
-                if (formalParameters != null) {
-                    constructorDeclaration.parameters().addAll(formalParameters);
-                }
-
-                List<Type> exceptionTypes = (List<Type>) node.childAt(6).accept(this);
-                if (exceptionTypes != null) {
-                    constructorDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
-                }
-
-                constructorDeclaration.setBody((Block) node.childAt(7).accept(this));
-
-                return constructorDeclaration;
-            }
-
-            // "{" ExplicitConstructorInvocation? BlockStatement* "}"
-            case "ConstructorBody": {
-                Block block = ast.newBlock();
-                List<Statement> statements = new ArrayList<>();
-                Statement explicitConstructorInvocation = (Statement) node.childAt(1).accept(this);
-                if (explicitConstructorInvocation != null) {
-                    statements.add(explicitConstructorInvocation);
-                }
-                statements.addAll((List<Statement>) node.childAt(2).accept(this));
-                block.statements().addAll(statements);
-                return block;
-            }
-
-            case "BlockStatement": {
-                Object result = node.childAt(0).accept(this);
-                // TODO: change it by introducing a nonterminal LocalTypeDeclaration
-                if (result instanceof TypeDeclaration) {
-                    return ast.newTypeDeclarationStatement((TypeDeclaration) result);
-                }
-                return result;
-            }
-
-            case "ExplicitConstructorInvocation": {
-                switch (node.getGrammarDefinition().getLabel()) {
-
-                    // NonWildTypeArguments? "this" Arguments ";"
-                    case "constructorInvocation": {
-                        ConstructorInvocation constructorInvocation = ast.newConstructorInvocation();
-                        List<Type> typeArguments = (List<Type>) node.childAt(0).accept(this);
-                        if (typeArguments != null) {
-                            constructorInvocation.typeArguments().addAll(typeArguments);
-                        }
-
-                        constructorInvocation.arguments().addAll((List<Expression>) node.childAt(2).accept(this));
-                        return constructorInvocation;
-                    }
-
-                    // (Primary ".")? NonWildTypeArguments? "super" Arguments ";"
-                    case "superConstructorInvocation": {
-                        SuperConstructorInvocation superConstructorInvocation = ast.newSuperConstructorInvocation();
-                        List<Type> typeArguments = (List<Type>) node.childAt(2).accept(this);
-                        if (typeArguments != null) {
-                            superConstructorInvocation.typeArguments().addAll(typeArguments);
-                        }
-
-                        Expression expression = (Expression) node.childAt(0).accept(this);
-                        if (expression != null) {
-                            superConstructorInvocation.setExpression(expression);
-                        }
-
-                        superConstructorInvocation.arguments().addAll((List<Expression>) node.childAt(3).accept(this));
-                        return superConstructorInvocation;
-                    }
-                }
-            }
-
-            // "static"? Block
-            case "Initializer": {
-                Initializer initializer = ast.newInitializer();
-                if (node.childAt(0).children().size() > 0) {
-                    initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
-                }
-                initializer.setBody((Block) node.childAt(1).accept(this));
-                return initializer;
-            }
-
-            // {Identifier "."}+
-            case "QualifiedIdentifier": {
-                List<SimpleName> identifiers = (List<SimpleName>) node.childAt(0).accept(this);
-
-                if (identifiers.size() == 1) {
-                    return identifiers.get(0);
-                }
-
-                Name qualifier = identifiers.get(0);
-                SimpleName simpleName = identifiers.get(1);
-                qualifier = ast.newQualifiedName(qualifier, simpleName);
-
-                for (int i = 2; i < identifiers.size(); i++) {
-                    simpleName = identifiers.get(i);
-                    qualifier = ast.newQualifiedName(qualifier, simpleName);
-                }
-
-                return qualifier;
-            }
-
-            // (ReferenceTypeNonArrayType | PrimaryType) ("[" "]")+
-            case "ArrayType": {
-                Type type = (Type) node.childAt(0).accept(this);
-                int dimensions = getDimensionsSize(node.childAt(1));
-                return ast.newArrayType(type, dimensions);
-            }
-
-            case "TypeArgument": {
-                switch (node.getGrammarDefinition().getLabel()) {
-
-                    //  Type
-                    case "simpleTypeArgument": {
-                        return node.childAt(0).accept(this);
-                    }
-
-                    //  "?" (("extends" | "super") Type)?
-                    case "wildCardTypeArgument": {
-                        WildcardType wildcardType = ast.newWildcardType();
-                        Type type = (Type) node.childAt(1).accept(this);
-                        if (type != null) {
-                            String superOrExtends = node.childAt(1).childAt(0).childAt(0).getText(input);
-                            if (superOrExtends.equals("super")) {
-                                wildcardType.setUpperBound(false);
-                            }
-                            wildcardType.setBound(type);
-                        }
-                        return wildcardType;
-                    }
-                }
-            }
-
-            // Identifier TypeBound?
-            case "TypeParameter": {
-                TypeParameter typeParameter = ast.newTypeParameter();
-
-                typeParameter.setName((SimpleName) node.childAt(0).accept(this));
-
-                List<Type> typeBounds = (List<Type>) node.childAt(1).accept(this);
-                if (typeBounds != null) {
-                    typeParameter.typeBounds().addAll(typeBounds);
-                }
-
-                return typeParameter;
-            }
-
-            // TypeBound: "extends" {ReferenceType "&"}+
-            case "TypeBound": {
-                return node.childAt(1).accept(this);
-            }
+            case "Expression":
+                return visitExpression(node);
+
+            case "ClassInstanceCreationExpression":
+                return visitClassInstanceCreationExpression(node);
+
+            case "TypeDeclSpecifier":
+                return visitTypeDeclSpecifier(node);
+
+            case "TypeArgumentsOrDiamond":
+                return visitTypeArgumentsOrDiamond(node);
+
+            case "TypeArguments":
+                return visitTypeArguments(node);
+
+            case "ClassBody":
+                return visitClassBody(node);
+
+            case "ArrayCreationExpression":
+                return visitArrayCreationExpression(node);
+
+            case "ReferenceTypeNonArrayType":
+                return visitReferenceTypeNonArrayType(node);
+
+            case "ArrayInitializer":
+                return visitArrayInitializer(node);
+
+            case "Primary":
+                return visitPrimary(node);
+
+            case "SuperSuffix":
+                return visitSuperSuffix(node);
+
+            case "MethodInvocation":
+                return visitMethodInvocation(node);
+
+            case "Literal":
+                return visitLiteral(node);
+
+            case "ConstructorDeclaration":
+                return visitConstructorDeclaration(node);
+
+            case "ConstructorBody":
+                return visitConstructorBody(node);
+
+            case "BlockStatement":
+                return visitBlockStatement(node);
+
+            case "ExplicitConstructorInvocation":
+                return visitExplicitConstructorInvocation(node);
+
+            case "Initializer":
+                return visitInitializer(node);
+
+            case "QualifiedIdentifier":
+                return visitQualifiedIdentifier(node);
+
+            case "ArrayType":
+                return visitArrayType(node);
+
+            case "TypeArgument":
+                return visitTypeArgument(node);
+
+            case "TypeParameter":
+                return visitTypeParameter(node);
+
+            case "TypeBound":
+                return visitTypeBound(node);
 
             case "VariableModifier":
             case "FieldModifier":
@@ -660,24 +195,615 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             case "ConstantModifier":
             case "AbstractMethodModifier":
             case "ConstructorModifier":
-            case "ClassModifier": {
-                if (node.hasChild("Annotation")) {
-                    return node.childAt(0).accept(this);
-                } else {
-                    return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
-                }
-            }
+            case "ClassModifier":
+                return visitModifier(node);
 
-            case "PrimitiveType": {
-                return ast.newPrimitiveType(PrimitiveType.toCode(node.getText(input)));
-            }
+            case "PrimitiveType":
+                return visitPrimitiveType(node);
 
-            case "Identifier": {
-                return ast.newSimpleName(node.childAt(0).getText(input));
-            }
+            case "Identifier":
+                return visitIdentifier(node);
         }
 
         return visitChildren(node);
+    }
+
+    private Name visitIdentifier(NonterminalNode node) {
+        return ast.newSimpleName(node.childAt(0).getText(input));
+    }
+
+    private PrimitiveType visitPrimitiveType(NonterminalNode node) {
+        return ast.newPrimitiveType(PrimitiveType.toCode(node.getText(input)));
+    }
+
+    private Object visitModifier(NonterminalNode node) {
+        if (node.hasChild("Annotation")) {
+            return node.childAt(0).accept(this);
+        } else {
+            return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText(input)));
+        }
+    }
+
+    // TypeBound: "extends" {ReferenceType "&"}+
+    private Object visitTypeBound(NonterminalNode node) {
+        return node.childAt(1).accept(this);
+    }
+
+    // Identifier TypeBound?
+    private Object visitTypeParameter(NonterminalNode node) {
+        TypeParameter typeParameter = ast.newTypeParameter();
+
+        typeParameter.setName((SimpleName) node.childAt(0).accept(this));
+
+        List<Type> typeBounds = (List<Type>) node.childAt(1).accept(this);
+        if (typeBounds != null) {
+            typeParameter.typeBounds().addAll(typeBounds);
+        }
+
+        return typeParameter;
+    }
+
+    private Object visitTypeArgument(NonterminalNode node) {
+        switch (node.getGrammarDefinition().getLabel()) {
+            //  Type
+            case "simpleTypeArgument": {
+                return node.childAt(0).accept(this);
+            }
+
+            //  "?" (("extends" | "super") Type)?
+            case "wildCardTypeArgument": {
+                WildcardType wildcardType = ast.newWildcardType();
+                Type type = (Type) node.childAt(1).accept(this);
+                if (type != null) {
+                    String superOrExtends = node.childAt(1).childAt(0).childAt(0).getText(input);
+                    if (superOrExtends.equals("super")) {
+                        wildcardType.setUpperBound(false);
+                    }
+                    wildcardType.setBound(type);
+                }
+                return wildcardType;
+            }
+
+            default:
+                throw new RuntimeException("Unkown TypeArugment: " + node);
+        }
+    }
+
+    // (ReferenceTypeNonArrayType | PrimaryType) ("[" "]")+
+    private Type visitArrayType(NonterminalNode node) {
+        Type type = (Type) node.childAt(0).accept(this);
+        int dimensions = getDimensionsSize(node.childAt(1));
+        return ast.newArrayType(type, dimensions);
+    }
+
+    // {Identifier "."}+
+    private Name visitQualifiedIdentifier(NonterminalNode node) {
+        List<SimpleName> identifiers = (List<SimpleName>) node.childAt(0).accept(this);
+
+        if (identifiers.size() == 1) {
+            return identifiers.get(0);
+        }
+
+        Name qualifier = identifiers.get(0);
+        SimpleName simpleName = identifiers.get(1);
+        qualifier = ast.newQualifiedName(qualifier, simpleName);
+
+        for (int i = 2; i < identifiers.size(); i++) {
+            simpleName = identifiers.get(i);
+            qualifier = ast.newQualifiedName(qualifier, simpleName);
+        }
+
+        return qualifier;
+    }
+
+    // "static"? Block
+    private Object visitInitializer(NonterminalNode node) {
+        Initializer initializer = ast.newInitializer();
+        if (node.childAt(0).children().size() > 0) {
+            initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
+        }
+        initializer.setBody((Block) node.childAt(1).accept(this));
+        return initializer;
+    }
+
+    private Object visitExplicitConstructorInvocation(NonterminalNode node) {
+        switch (node.getGrammarDefinition().getLabel()) {
+
+            // NonWildTypeArguments? "this" Arguments ";"
+            case "constructorInvocation": {
+                ConstructorInvocation constructorInvocation = ast.newConstructorInvocation();
+                List<Type> typeArguments = (List<Type>) node.childAt(0).accept(this);
+                if (typeArguments != null) {
+                    constructorInvocation.typeArguments().addAll(typeArguments);
+                }
+
+                constructorInvocation.arguments().addAll((List<Expression>) node.childAt(2).accept(this));
+                return constructorInvocation;
+            }
+
+            // (Primary ".")? NonWildTypeArguments? "super" Arguments ";"
+            case "superConstructorInvocation": {
+                SuperConstructorInvocation superConstructorInvocation = ast.newSuperConstructorInvocation();
+                List<Type> typeArguments = (List<Type>) node.childAt(2).accept(this);
+                if (typeArguments != null) {
+                    superConstructorInvocation.typeArguments().addAll(typeArguments);
+                }
+
+                Expression expression = (Expression) node.childAt(0).accept(this);
+                if (expression != null) {
+                    superConstructorInvocation.setExpression(expression);
+                }
+
+                superConstructorInvocation.arguments().addAll((List<Expression>) node.childAt(3).accept(this));
+                return superConstructorInvocation;
+            }
+
+            default:
+                throw new RuntimeException("Unknown constructor type: " + node);
+        }
+    }
+
+    private Object visitBlockStatement(NonterminalNode node) {
+        Object result = node.childAt(0).accept(this);
+        // TODO: change it by introducing a nonterminal LocalTypeDeclaration
+        if (result instanceof TypeDeclaration) {
+            return ast.newTypeDeclarationStatement((TypeDeclaration) result);
+        }
+        return result;
+    }
+
+    // "{" ExplicitConstructorInvocation? BlockStatement* "}"
+    private Block visitConstructorBody(NonterminalNode node) {
+        Block block = ast.newBlock();
+        List<Statement> statements = new ArrayList<>();
+        Statement explicitConstructorInvocation = (Statement) node.childAt(1).accept(this);
+        if (explicitConstructorInvocation != null) {
+            statements.add(explicitConstructorInvocation);
+        }
+        statements.addAll((List<Statement>) node.childAt(2).accept(this));
+        block.statements().addAll(statements);
+        return block;
+    }
+
+    // ConstructorModifier* TypeParameters? Identifier "(" FormalParameterList? ")" Throws? ConstructorBody
+    private MethodDeclaration visitConstructorDeclaration(NonterminalNode node) {
+        MethodDeclaration constructorDeclaration = ast.newMethodDeclaration();
+        constructorDeclaration.setConstructor(true);
+        constructorDeclaration.setReturnType2(null);
+        constructorDeclaration.modifiers().addAll(getModifiers(node.childAt(0)));
+
+        List<TypeParameter> typeParameters = (List<TypeParameter>) node.childAt(1).accept(this);
+        if (typeParameters != null) {
+            constructorDeclaration.typeParameters().addAll(typeParameters);
+        }
+        constructorDeclaration.setName((SimpleName) node.childAt(2).accept(this));
+
+        List<SingleVariableDeclaration> formalParameters = (List<SingleVariableDeclaration>) node.childAt(4).accept(this);
+        if (formalParameters != null) {
+            constructorDeclaration.parameters().addAll(formalParameters);
+        }
+
+        List<Type> exceptionTypes = (List<Type>) node.childAt(6).accept(this);
+        if (exceptionTypes != null) {
+            constructorDeclaration.thrownExceptionTypes().addAll(exceptionTypes);
+        }
+
+        constructorDeclaration.setBody((Block) node.childAt(7).accept(this));
+
+        return constructorDeclaration;
+    }
+
+    private Expression visitLiteral(NonterminalNode node) {
+        switch (node.getGrammarDefinition().getLabel()) {
+            case "integerLiteral":
+            case "floatLiteral": {
+                return ast.newNumberLiteral(node.getText(input));
+            }
+
+            case "booleanLiteral": {
+                return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText(input)));
+            }
+
+            case "characterLiteral": {
+                CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+                characterLiteral.setEscapedValue(node.getText(input));
+                return characterLiteral;
+            }
+
+            case "stringLiteral": {
+                StringLiteral stringLiteral = ast.newStringLiteral();
+                stringLiteral.setEscapedValue(node.getText(input));
+                return stringLiteral;
+            }
+
+            case "nullLiteral": {
+                return ast.newNullLiteral();
+            }
+
+            default:
+                throw new RuntimeException("Unknown Literal: " + node);
+        }
+    }
+
+    // Identifier Arguments
+    private MethodInvocation visitMethodInvocation(NonterminalNode node) {
+        MethodInvocation methodInvocation = ast.newMethodInvocation();
+        methodInvocation.setName((SimpleName) node.childAt(0).accept(this));
+        methodInvocation.arguments().addAll((List<Expression>) node.childAt(1).accept(this));
+        return methodInvocation;
+    }
+
+    // "." NonWildTypeArguments? Identifier Arguments?
+    private Expression visitSuperSuffix(NonterminalNode node) {
+        List<Expression> arguments = (List<Expression>) node.childAt(3).accept(this);
+        if (arguments != null) {
+            SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
+            superMethodInvocation.setName(getIdentifier(node.childAt(2)));
+            superMethodInvocation.arguments().addAll(arguments);
+            return superMethodInvocation;
+        } else {
+            // "." NonWildTypeArguments? Identifier Arguments?
+            SuperFieldAccess superFieldAccess = ast.newSuperFieldAccess();
+            superFieldAccess.setName(getIdentifier(node.childAt(2)));
+            return superFieldAccess;
+        }
+    }
+
+    private Expression visitPrimary(NonterminalNode node) {
+        switch (node.getGrammarDefinition().getLabel()) {
+
+            case "literalPrimary": {
+                return (Expression) node.childAt(0).accept(this);
+            }
+
+            // (QualifiedIdentifier ".")? "this"
+            case "thisPrimary": {
+                ThisExpression thisExpression = ast.newThisExpression();
+                Name qualifiedIdentifier = (Name) node.childAt(0).accept(this);
+                if (qualifiedIdentifier != null) {
+                    thisExpression.setQualifier(qualifiedIdentifier);
+                }
+                return thisExpression;
+            }
+
+            case "superPrimary": {
+                return (Expression) node.childAt(1).accept(this);
+            }
+
+            case "idPrimary": {
+                return getIdentifier(node.childAt(0));
+            }
+
+            case "typeLiteralPrimary": {
+                TypeLiteral typeLiteral = ast.newTypeLiteral();
+                Type type = (Type) node.childAt(0).accept(this);
+                if (type == null) {
+                    type = ast.newPrimitiveType(PrimitiveType.VOID);
+                }
+                typeLiteral.setType(type);
+                return typeLiteral;
+            }
+
+            // "(" Expression ")"
+            case "parExprPrimary": {
+                ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
+                parenthesizedExpression.setExpression((Expression) node.childAt(1).accept(this));
+                return parenthesizedExpression;
+            }
+
+            default:
+                throw new RuntimeException("Unexpected primary " + node);
+        }
+    }
+
+    // "{"  {VariableInitializer ","}* ","? "}"
+    private ArrayInitializer visitArrayInitializer(NonterminalNode node) {
+        ArrayInitializer arrayInitializer = ast.newArrayInitializer();
+        arrayInitializer.expressions().addAll((List<Expression>) node.childAt(1).accept(this));
+        return arrayInitializer;
+    }
+
+    // TypeDeclSpecifier TypeArguments?
+    private Type visitReferenceTypeNonArrayType(NonterminalNode node) {
+        Type type = (Type) node.childAt(0).accept(this);
+        List<Type> typeArguments = (List<Type>) node.childAt(1).accept(this);
+        if (typeArguments != null) {
+            type = ast.newParameterizedType(type);
+            ((ParameterizedType) type).typeArguments().addAll(typeArguments);
+        }
+        return type;
+    }
+
+    /*
+     * ArrayCreationExpression
+     *   = (PrimitiveType | ReferenceType) ("[" Expression "]")+ ("[" "]")*
+     *   | (PrimitiveType | ReferenceTypeNonArrayType) ("[" "]")+ ArrayInitializer
+     */
+    private ArrayCreation visitArrayCreationExpression(NonterminalNode node) {
+        ArrayCreation arrayCreation = ast.newArrayCreation();
+        if (node.hasChild("ArrayInitializer")) { // Second alternative
+            int dimensions = getDimensionsSize(node.childAt(1));
+            arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
+            arrayCreation.setInitializer((ArrayInitializer) node.childAt(2).accept(this));
+        } else {
+            List<Expression> expressions = (List<Expression>) node.childAt(1).accept(this);
+            int dimensions = getDimensionsSize(node.childAt(2)) + expressions.size();
+            arrayCreation.setType(ast.newArrayType((Type) node.childAt(0).accept(this), dimensions));
+            arrayCreation.dimensions().addAll(expressions);
+        }
+        return arrayCreation;
+    }
+
+    // "{" ClassBodyDeclaration* "}"
+    private List<BodyDeclaration> visitClassBody(NonterminalNode node) {
+        List<BodyDeclaration> bodyDeclarations = new ArrayList<>();
+        bodyDeclarations.addAll((List<BodyDeclaration>) node.childAt(1).accept(this));
+        return bodyDeclarations;
+    }
+
+    // '<' {TypeArgument ","}+ '>'
+    private Object visitTypeArguments(NonterminalNode node) {
+        return node.childAt(1).accept(this);
+    }
+
+    // TypeArgumentsOrDiamond
+    //        = "<" ">"
+    //        | TypeArguments
+    private Object visitTypeArgumentsOrDiamond(NonterminalNode node) {
+        if (node.childAt(0).getName().equals("TypeArguments")) {
+            return node.childAt(0).accept(this);
+        }
+        return emptyList();
+    }
+
+    // TypeDeclSpecifier: Identifier (TypeArguments? "." Identifier)*
+    private Type visitTypeDeclSpecifier(NonterminalNode node) {
+        Type type = ast.newSimpleType((SimpleName) node.childAt(0).accept(this));
+
+        List<Object> rest = (List<Object>) node.childAt(1).accept(this);
+
+        for (Object n : rest) {
+            if (n instanceof List) { // TypeArguments
+                type = ast.newParameterizedType(type);
+                ((ParameterizedType) type).typeArguments().addAll((List<Type>) n);
+            } else { // Identifier
+                type = ast.newQualifiedType(type, (SimpleName) n);
+            }
+        }
+
+        return type;
+    }
+
+    // TypeArguments? TypeDeclSpecifier TypeArgumentsOrDiamond? Arguments ClassBody?
+    private ClassInstanceCreation visitClassInstanceCreationExpression(NonterminalNode node) {
+        ClassInstanceCreation classInstanceCreation = ast.newClassInstanceCreation();
+
+        List<Type> typeArguments = (List<Type>) node.childAt(0).accept(this);
+        if (typeArguments != null) {
+            classInstanceCreation.typeArguments().addAll(typeArguments);
+        }
+
+        Type type = (Type) node.childAt(1).accept(this);
+        List<Type> typeArgumentsOrDiamond = (List<Type>) node.childAt(2).accept(this);
+        if (typeArgumentsOrDiamond != null) {
+            type = ast.newParameterizedType(type);
+            ((ParameterizedType) type).typeArguments().addAll(typeArgumentsOrDiamond);
+        }
+
+        classInstanceCreation.setType(type);
+        classInstanceCreation.arguments().addAll((List<Expression>) node.childAt(3).accept(this));
+
+        List<BodyDeclaration> bodyDeclarations = (List<BodyDeclaration>) node.childAt(4).accept(this);
+        if (bodyDeclarations != null) {
+            AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
+            anonymousClassDeclaration.bodyDeclarations().addAll(bodyDeclarations);
+            classInstanceCreation.setAnonymousClassDeclaration(anonymousClassDeclaration);
+        }
+        return classInstanceCreation;
+    }
+
+    private Expression visitExpression(NonterminalNode node) {
+        // Infix expression
+        if (node.getGrammarDefinition().getLabel() == null || node.getGrammarDefinition().getLabel().equals("comparisonExpr")) {
+            InfixExpression infixExpression = ast.newInfixExpression();
+            infixExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
+            infixExpression.setRightOperand((Expression) node.childAt(2).accept(this));
+            infixExpression.setOperator(InfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
+            return infixExpression;
+        }
+
+        switch (node.getGrammarDefinition().getLabel()) {
+
+            case "fieldAccess":
+                return visitFieldAccess(node);
+
+            case "methodCall":
+                return visitMethodCall(node);
+
+            case "arrayAccess":
+                return visitArrayAccess(node);
+
+            case "postfix":
+                return visitPostfix(node);
+
+            case "prefix":
+                return visitPrefix(node);
+
+            case "newClass":
+                return visitNewClass(node);
+
+            case "primitiveCastExpr":
+                return visitPrimitiveCastExpr(node);
+
+            case "castExpr":
+                return visitCastExpression(node);
+
+            case "instanceOfExpr":
+                return visitInstanceOfExpr(node);
+
+            case "conditionalExpr":
+                return visitConditionalExpr(node);
+
+            case "assignmentExpr":
+                return visitAssignmentExpr(node);
+
+            case "primaryExpr":
+                return visitPrimaryExpr(node);
+
+            default:
+                throw new RuntimeException("Unexpected exception type");
+        }
+    }
+
+    private Expression visitPrimaryExpr(NonterminalNode node) {
+        return (Expression) node.childAt(0).accept(this);
+    }
+
+    // Expression AssignmentOperator Expression
+    private Assignment visitAssignmentExpr(NonterminalNode node) {
+        Assignment assignment = ast.newAssignment();
+        assignment.setLeftHandSide((Expression) node.childAt(0).accept(this));
+        assignment.setRightHandSide((Expression) node.childAt(2).accept(this));
+        assignment.setOperator(Assignment.Operator.toOperator(node.childAt(1).getText(input)));
+        return assignment;
+    }
+
+    // Expression "?" Expression ":" Expression
+    private ConditionalExpression visitConditionalExpr(NonterminalNode node) {
+        ConditionalExpression conditionalExpression = ast.newConditionalExpression();
+        conditionalExpression.setExpression((Expression) node.childAt(0).accept(this));
+        conditionalExpression.setThenExpression((Expression) node.childAt(2).accept(this));
+        conditionalExpression.setElseExpression((Expression) node.childAt(4).accept(this));
+        return conditionalExpression;
+    }
+
+    // Expression "instanceof" Type
+    private InstanceofExpression visitInstanceOfExpr(NonterminalNode node) {
+        InstanceofExpression instanceofExpression = ast.newInstanceofExpression();
+        instanceofExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
+        instanceofExpression.setRightOperand((Type) node.childAt(2).accept(this));
+        return instanceofExpression;
+    }
+
+    // "(" ReferenceType ")" Expression
+    private CastExpression visitCastExpression(NonterminalNode node) {
+        CastExpression castExpression = ast.newCastExpression();
+        castExpression.setType((Type) node.childAt(1).accept(this));
+        castExpression.setExpression((Expression) node.childAt(3).accept(this));
+        return castExpression;
+    }
+
+    // "(" Type ")" Expression
+    private CastExpression visitPrimitiveCastExpr(NonterminalNode node) {
+        CastExpression castExpression = ast.newCastExpression();
+        castExpression.setType((Type) node.childAt(1).accept(this));
+        castExpression.setExpression((Expression) node.childAt(3).accept(this));
+        return castExpression;
+    }
+
+    // "new" (ClassInstanceCreationExpression | ArrayCreationExpression)
+    private Expression visitNewClass(NonterminalNode node) {
+        return (Expression) node.childAt(1).accept(this);
+    }
+
+    // ("+" !>> "+" | "-" !>> "-" | "++" | "--" | "!" | "~") Expression
+    private Expression visitPrefix(NonterminalNode node) {
+        PrefixExpression prefixExpression = ast.newPrefixExpression();
+        prefixExpression.setOperand((Expression) node.childAt(1).accept(this));
+        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(node.childAt(0).getText(input)));
+        return prefixExpression;
+    }
+
+    // Expression ("++" | "--")
+    private PostfixExpression visitPostfix(NonterminalNode node) {
+        PostfixExpression postfixExpression = ast.newPostfixExpression();
+        postfixExpression.setOperand((Expression) node.childAt(0).accept(this));
+        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(node.childAt(1).getText(input)));
+        return postfixExpression;
+    }
+
+    // Expression "[" Expression "]"
+    private ArrayAccess visitArrayAccess(NonterminalNode node) {
+        ArrayAccess arrayAccess = ast.newArrayAccess();
+        arrayAccess.setArray((Expression) node.childAt(0).accept(this));
+        arrayAccess.setIndex((Expression) node.childAt(2).accept(this));
+        return arrayAccess;
+    }
+
+    // MethodInvocation
+    private Expression visitMethodCall(NonterminalNode node) {
+        return (Expression) node.childAt(0).accept(this);
+    }
+
+    // Expression "." Selector
+    private Expression visitFieldAccess(NonterminalNode node) {
+        Expression expression = (Expression) node.childAt(0).accept(this);
+        return getFieldAccess(expression, (NonterminalNode) node.childAt(2));
+    }
+
+    private Statement visitStatement(NonterminalNode node) {
+        switch (node.getGrammarDefinition().getLabel()) {
+
+            case "blockStmt":
+                return visitBlockStmt(node);
+
+            case "emptyStmt":
+                return visitEmptyStmt(node);
+
+            case "expressionStmt":
+                return visitExpressionStmt(node);
+
+            case "assertStmt":
+                return visitAssertStmt(node);
+
+            case "switchStmt":
+                return visitSwitchStmt(node);
+
+            case "doStmt":
+                return visitDoStmt(node);
+
+            case "breakStmt":
+                return visitBreakStmt(node);
+
+            case "continueStmt":
+                return visitContinueStmt(node);
+
+            case "returnStmt":
+                return visitReturnStatement(node);
+
+            case "synchronizedStmt":
+                return visitSynchronizedStmt(node);
+
+            case "throwStmt":
+                return visitThrowStmt(node);
+
+            case "tryStmt":
+                return visitTryStmt(node);
+
+            case "tryFinally":
+                return visitTryFinally(node);
+
+            case "tryWithResourcesStmt":
+                return visitTryWithResourcesStmt(node);
+
+            case "labelStmt":
+                return visitLabelStmt(node);
+
+            case "ifStmt":
+                return visitIfStmt(node);
+
+            case "ifElseStmt":
+                return visitIfElseStmt(node);
+
+            case "whileStmt":
+                return visitWhileStmt(node);
+
+            case "forStmt":
+                return visitForStmt(node);
+
+            default:
+                throw new RuntimeException("Unknown statement: " + node);
+        }
     }
 
     // Statement: "finally" Block
@@ -819,7 +945,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     // Statement: "while" "(" Expression ")" Statement
-    private Object visitWhileStmt(NonterminalNode node) {
+    private WhileStatement visitWhileStmt(NonterminalNode node) {
         WhileStatement whileStatement = ast.newWhileStatement();
         whileStatement.setExpression((Expression) node.childAt(2).accept(this));
 
@@ -829,7 +955,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     // Statement: "if" "(" Expression ")" Statement "else" Statement
-    private Object visitIfElseStmt(NonterminalNode node) {
+    private IfStatement visitIfElseStmt(NonterminalNode node) {
         IfStatement ifStatement = ast.newIfStatement();
         ifStatement.setExpression((Expression) node.childAt(2).accept(this));
         Statement thenBranch = (Statement) node.childAt(4).accept(this);
@@ -842,7 +968,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     // Statement: "if" "(" Expression ")" Statement !>>> "else"
-    private Object visitIfStmt(NonterminalNode node) {
+    private IfStatement visitIfStmt(NonterminalNode node) {
         IfStatement ifStatement = ast.newIfStatement();
         ifStatement.setExpression((Expression) node.childAt(2).accept(this));
         Statement thenBranch = (Statement) node.childAt(4).accept(this);
@@ -859,7 +985,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     // Statement: "try" ResourceSpecification Block CatchClause* Finally?
-    private Object visitTryWithResourcesStmt(NonterminalNode node) {
+    private TryStatement visitTryWithResourcesStmt(NonterminalNode node) {
         TryStatement tryStatement = ast.newTryStatement();
         tryStatement.resources().addAll((List<Expression>) node.childAt(1).accept(this));
         tryStatement.setBody((Block) node.childAt(2).accept(this));
