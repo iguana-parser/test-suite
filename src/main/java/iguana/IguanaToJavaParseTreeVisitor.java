@@ -8,8 +8,6 @@ import org.iguana.parsetree.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -689,13 +687,24 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     // {QualifiedIdentifier "|"}+
     private Type visitCatchType(NonterminalNode node) {
-        List<Type> types = ((List<Name>) node.childAt(0).accept(this)).stream().map(name -> ast.newSimpleType(name)).collect(toList());
+        List<Type> types = getQualifiedTypes(node.childAt(0));
         if (types.size() == 1) {
             return types.get(0);
         }
         UnionType unionType = ast.newUnionType();
         unionType.types().addAll(types);
         return unionType;
+    }
+
+    private List<Type> getQualifiedTypes(ParseTreeNode node) {
+        List<Type> types = new ArrayList<>();
+
+        List<Name> qualifiedIdentifiers = (List<Name>) node.accept(this);
+
+        for (Name name : qualifiedIdentifiers) {
+            types.add(ast.newSimpleType(name));
+        }
+        return types;
     }
 
     // CatchClause: "catch" "(" VariableModifier* CatchType Identifier ")" Block
@@ -1045,7 +1054,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     // Throws: "throws" {QualifiedIdentifier ","}+
     private Object visitThrows(NonterminalNode node) {
-        return ((List<Name>) node.childAt(1).accept(this)).stream().map(name -> ast.newSimpleType(name)).collect(toList());
+        return getQualifiedTypes(node.childAt(1));
     }
 
     // MethodDeclaration: MethodModifier* TypeParameters? Result MethodDeclarator Throws? MethodBody
@@ -1342,10 +1351,13 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private Object visitChildren(ParseTreeNode node) {
-        List<Object> result = node.children().stream()
-                .map(child -> child.accept(this))
-                .filter(Objects::nonNull)
-                .collect(toList());
+        List<Object> result = new ArrayList<>();
+        for (ParseTreeNode child : node.children()) {
+            Object childResult = child.accept(this);
+            if (childResult != null) {
+                result.add(childResult);
+            }
+        }
 
         if (result.isEmpty()) {
             return null;
@@ -1444,15 +1456,17 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     // ('[' ']')*
     private int getDimensionsSize(ParseTreeNode node) {
-        if (node.children().size() == 0) {
-            return 0;
-        }
         return node.children().size();
     }
 
     private List<Dimension> getDimensions(ParseTreeNode node) {
         if (node == null) return emptyList();
-        return IntStream.range(0, getDimensionsSize(node)).mapToObj(i -> ast.newDimension()).collect(toList());
+
+        List<Dimension> dimensions = new ArrayList<>();
+        for (int i = 0; i < getDimensionsSize(node); i++) {
+            dimensions.add(ast.newDimension());
+        }
+        return dimensions;
     }
 
     private Expression getFieldAccess(Expression expression, NonterminalNode node) {
