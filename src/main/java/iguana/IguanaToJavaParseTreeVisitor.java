@@ -562,7 +562,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
         List<Object> rest = (List<Object>) node.childAt(1).accept(this);
 
-        for (Object n : rest) {
+        for (int i = 0; i < rest.size(); i++) {
+            Object n = rest.get(i);
             if (n instanceof List) { // TypeArguments
                 type = ast.newParameterizedType(type);
                 ((ParameterizedType) type).typeArguments().addAll((List<Type>) n);
@@ -827,7 +828,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
         List<Name> qualifiedIdentifiers = (List<Name>) node.accept(this);
 
-        for (Name name : qualifiedIdentifiers) {
+        for (int i = 0; i < qualifiedIdentifiers.size(); i++) {
+            Name name = qualifiedIdentifiers.get(i);
             types.add(ast.newSimpleType(name));
         }
         return types;
@@ -1123,7 +1125,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     private Block visitBlock(NonterminalNode node) {
         Block block = ast.newBlock();
         List<ASTNode> blockStatements = (List<ASTNode>) node.childAt(1).accept(this);
-        for (ASTNode blockStatement : blockStatements) {
+        for (int i = 0; i < blockStatements.size(); i++) {
+            ASTNode blockStatement = blockStatements.get(i);
             if (blockStatement instanceof TypeDeclaration) {
                 block.statements().add(ast.newTypeDeclarationStatement((TypeDeclaration) blockStatement));
             } else {
@@ -1478,7 +1481,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     private Object visitChildren(ParseTreeNode node) {
         List<Object> result = new ArrayList<>();
-        for (ParseTreeNode child : node.children()) {
+        for (int i = 0; i < node.children().size(); i++) {
+            ParseTreeNode child = node.childAt(i);
             Object childResult = child.accept(this);
             if (childResult != null) {
                 result.add(childResult);
@@ -1523,7 +1527,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 return result;
             } else {
                 List<Object> result = new ArrayList<>();
-                for (ParseTreeNode child : node.children()) {
+                for (int i = 0; i < node.children().size(); i++) {
+                    ParseTreeNode child = node.childAt(i);
                     result.addAll((List<Object>) child.accept(this));
                 }
                 return result;
@@ -1532,7 +1537,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
         if (definition instanceof Star || definition instanceof Plus || definition instanceof Sequence) {
             List<Object> result = new ArrayList<>(node.children().size());
-            for (ParseTreeNode child : node.children()) {
+            for (int i = 0; i < node.children().size(); i++) {
+                ParseTreeNode child = node.childAt(i);
                 Object childResult = child.accept(this);
                 if (childResult != null) {
                     result.add(child.accept(this));
