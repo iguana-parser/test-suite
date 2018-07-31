@@ -212,18 +212,18 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private Name visitIdentifier(NonterminalNode node) {
-        return ast.newSimpleName(getText(node.childAt(0)));
+        return ast.newSimpleName(node.childAt(0).getText());
     }
 
     private PrimitiveType visitPrimitiveType(NonterminalNode node) {
-        return ast.newPrimitiveType(PrimitiveType.toCode(getText(node)));
+        return ast.newPrimitiveType(PrimitiveType.toCode(node.getText()));
     }
 
     private Object visitModifier(NonterminalNode node) {
         if (node.hasChild("Annotation")) {
             return node.childAt(0).accept(this);
         } else {
-            return ast.newModifier(Modifier.ModifierKeyword.toKeyword(getText(node)));
+            return ast.newModifier(Modifier.ModifierKeyword.toKeyword(node.getText()));
         }
     }
 
@@ -258,7 +258,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
                 WildcardType wildcardType = ast.newWildcardType();
                 Type type = (Type) node.childAt(1).accept(this);
                 if (type != null) {
-                    String superOrExtends = getText(node.childAt(1).childAt(0).childAt(0));
+                    String superOrExtends = node.childAt(1).childAt(0).childAt(0).getText();
                     if (superOrExtends.equals("super")) {
                         wildcardType.setUpperBound(false);
                     }
@@ -401,22 +401,22 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         switch (node.getGrammarDefinition().getLabel()) {
             case "integerLiteral":
             case "floatLiteral": {
-                return ast.newNumberLiteral(getText(node));
+                return ast.newNumberLiteral(node.getText());
             }
 
             case "booleanLiteral": {
-                return ast.newBooleanLiteral(Boolean.parseBoolean(getText(node)));
+                return ast.newBooleanLiteral(Boolean.parseBoolean(node.getText()));
             }
 
             case "characterLiteral": {
                 CharacterLiteral characterLiteral = ast.newCharacterLiteral();
-                characterLiteral.setEscapedValue(getText(node));
+                characterLiteral.setEscapedValue(node.getText());
                 return characterLiteral;
             }
 
             case "stringLiteral": {
                 StringLiteral stringLiteral = ast.newStringLiteral();
-                stringLiteral.setEscapedValue(getText(node));
+                stringLiteral.setEscapedValue(node.getText());
                 return stringLiteral;
             }
 
@@ -611,7 +611,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             InfixExpression infixExpression = ast.newInfixExpression();
             infixExpression.setLeftOperand((Expression) node.childAt(0).accept(this));
             infixExpression.setRightOperand((Expression) node.childAt(2).accept(this));
-            infixExpression.setOperator(InfixExpression.Operator.toOperator(getText(node.childAt(1))));
+            infixExpression.setOperator(InfixExpression.Operator.toOperator(node.childAt(1).getText()));
             return infixExpression;
         }
 
@@ -667,7 +667,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         Assignment assignment = ast.newAssignment();
         assignment.setLeftHandSide((Expression) node.childAt(0).accept(this));
         assignment.setRightHandSide((Expression) node.childAt(2).accept(this));
-        assignment.setOperator(Assignment.Operator.toOperator(getText(node.childAt(1))));
+        assignment.setOperator(Assignment.Operator.toOperator(node.childAt(1).getText()));
         return assignment;
     }
 
@@ -713,7 +713,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     private Expression visitPrefix(NonterminalNode node) {
         PrefixExpression prefixExpression = ast.newPrefixExpression();
         prefixExpression.setOperand((Expression) node.childAt(1).accept(this));
-        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(getText(node.childAt(0))));
+        prefixExpression.setOperator(PrefixExpression.Operator.toOperator(node.childAt(0).getText()));
         return prefixExpression;
     }
 
@@ -721,7 +721,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     private PostfixExpression visitPostfix(NonterminalNode node) {
         PostfixExpression postfixExpression = ast.newPostfixExpression();
         postfixExpression.setOperand((Expression) node.childAt(0).accept(this));
-        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(getText(node.childAt(1))));
+        postfixExpression.setOperator(PostfixExpression.Operator.toOperator(node.childAt(1).getText()));
         return postfixExpression;
     }
 
@@ -1503,12 +1503,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
         return result;
     }
 
-    private Map<IntKey2, String> stringCache = new HashMap<>();
-
-    private String getText(ParseTreeNode node) {
-        return input.subString(node.getStart(), node.getEnd());
-    }
-
     @Override
     public ASTNode visitAmbiguityNode(AmbiguityNode node) {
         throw new RuntimeException("Ambiguity");
@@ -1580,7 +1574,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
     }
 
     private SimpleName getIdentifier(ParseTreeNode node) {
-        return ast.newSimpleName(getText(node));
+        return ast.newSimpleName(node.getText());
     }
 
     private List<IExtendedModifier> getModifiers(ParseTreeNode node) {
