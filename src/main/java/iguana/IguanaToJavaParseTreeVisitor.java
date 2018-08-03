@@ -1482,6 +1482,11 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
 
     private Object visitChildren(ParseTreeNode node) {
         int size = node.children().size();
+
+        if (size == 1) {
+            return node.childAt(0).accept(this);
+        }
+
         List<Object> result = new ArrayList<>(size);
 
         for (int i = 0; i < size; i++) {

@@ -28,13 +28,11 @@ import static org.junit.Assert.assertTrue;
 
 class TestIguanaASTs {
 
-    private Grammar grammar;
     private IguanaParser parser;
-    private Set<String> ignoreSet;
 
     @BeforeEach
     void init() throws Exception {
-        grammar = Grammar.load(new File(this.getClass().getResource("/JavaNat").toURI()));
+        Grammar grammar = Grammar.load(new File(this.getClass().getResource("/JavaNat").toURI()));
 
         grammar = new EBNFToBNF().transform(grammar);
 
@@ -46,9 +44,6 @@ class TestIguanaASTs {
         grammar = new DesugarStartSymbol().transform(grammar);
 
         parser = new IguanaParser(grammar);
-
-        ignoreSet = new HashSet<>(1);
-        ignoreSet.add(grammar.getLayout().getName());
     }
 
     @TestFactory
@@ -64,7 +59,7 @@ class TestIguanaASTs {
             ASTParser astParser = newASTParser(inputContent);
             CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
-            ParseTreeNode parseTreeNode = parser.getParseTree(ignoreSet);
+            ParseTreeNode parseTreeNode = parser.getParseTree();
             ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
 
             assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
@@ -81,7 +76,7 @@ class TestIguanaASTs {
 
         Timer timer = new Timer();
         timer.start();
-        ParseTreeNode parseTreeNode = parser.getParseTree(ignoreSet);
+        ParseTreeNode parseTreeNode = parser.getParseTree();
         timer.stop();
         System.out.println("Parse tree creation time:" + timer.getNanoTime() / 1000_000);
 
