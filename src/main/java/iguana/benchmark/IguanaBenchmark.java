@@ -12,7 +12,6 @@ import org.iguana.parser.IguanaParser;
 import org.iguana.parsetree.ParseTreeNode;
 import org.openjdk.jmh.annotations.*;
 
-import java.io.File;
 import java.nio.file.Paths;
 
 import static iguana.Utils.getFileContent;
@@ -47,9 +46,9 @@ public class IguanaBenchmark {
     @Benchmark
     public CompilationUnit benchmark() {
         parser.parse(input);
-        parser.getParseTree();
 
         ParseTreeNode parseTreeNode = parser.getParseTree();
         return (CompilationUnit) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
     }
+
 }

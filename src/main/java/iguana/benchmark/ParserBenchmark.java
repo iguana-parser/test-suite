@@ -25,7 +25,7 @@ public class ParserBenchmark {
         String[] params = getFiles(getJDK7SourceLocation(), ".java")
                 .stream()
                 .map(Path::toString)
-                .limit(100)
+                .limit(10)
                 .collect(toList()).toArray(new String[]{});
 
         Options options = new OptionsBuilder()
