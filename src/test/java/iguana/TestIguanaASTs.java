@@ -59,7 +59,9 @@ class TestIguanaASTs {
             ASTParser astParser = newASTParser(inputContent);
             CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
-            ParseTreeNode parseTreeNode = parser.getParseTree();
+            Set<String> ignoreList = new HashSet<>();
+            ignoreList.add("Layout");
+            ParseTreeNode parseTreeNode = parser.getParseTree(ignoreList);
             ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
 
             assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
