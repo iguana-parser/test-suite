@@ -11,6 +11,7 @@ import org.iguana.grammar.transformation.DesugarStartSymbol;
 import org.iguana.grammar.transformation.EBNFToBNF;
 import org.iguana.grammar.transformation.LayoutWeaver;
 import org.iguana.parser.IguanaParser;
+import org.iguana.parser.ParseOptions;
 import org.iguana.parsetree.ParseTreeNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
@@ -24,6 +25,7 @@ import java.util.*;
 
 import static iguana.Utils.*;
 import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 class TestIguanaASTs {
@@ -54,14 +56,12 @@ class TestIguanaASTs {
             String inputContent = getFileContent(path);
             Input input = Input.fromString(inputContent);
 
-            assertTrue(parser.parse(input));
+            ParseTreeNode parseTreeNode = parser.parse(input);
+            assertNotNull(parseTreeNode);
 
             ASTParser astParser = newASTParser(inputContent);
             CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
 
-            Set<String> ignoreList = new HashSet<>();
-            ignoreList.add("Layout");
-            ParseTreeNode parseTreeNode = parser.getParseTree(ignoreList);
             ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
 
             assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
@@ -73,16 +73,11 @@ class TestIguanaASTs {
         String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
         Input input = Input.fromString(inputContent);
 
-        assertTrue(parser.parse(input));
+        ParseTreeNode parseTreeNode = parser.parse(input, new ParseOptions.Builder().setIgnoreLayout(false).build());
+        assertNotNull(parseTreeNode);
         System.out.println("Parse time:" + parser.getRunningTime().getNanoTime() / 1000_000);
 
         Timer timer = new Timer();
-        timer.start();
-        ParseTreeNode parseTreeNode = parser.getParseTree();
-        timer.stop();
-        System.out.println("Parse tree creation time:" + timer.getNanoTime() / 1000_000);
-
-        timer.reset();
         timer.start();
         ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor(input));
         timer.stop();
