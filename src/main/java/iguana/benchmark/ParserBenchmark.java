@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import static iguana.Utils.getFiles;
 import static iguana.Utils.getJDK7SourceLocation;
 import static java.util.stream.Collectors.toList;
+import static org.openjdk.jmh.results.format.ResultFormatType.CSV;
 
 public class ParserBenchmark {
 
@@ -36,6 +37,9 @@ public class ParserBenchmark {
                 .forks(1)
                 .warmupIterations(5)
                 .measurementIterations(10)
+                .output(benchmarkName + ".txt")
+                .resultFormat(CSV)
+                .result(benchmarkName + ".csv")
                 .build();
 
         new Runner(options).run();
