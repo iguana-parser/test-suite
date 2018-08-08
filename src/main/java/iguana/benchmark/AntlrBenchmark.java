@@ -3,6 +3,7 @@ package iguana.benchmark;
 import antlr4java.JavaParser;
 import iguana.AntlrJavaParser;
 import iguana.AntlrToJavaParseTreeVisitor;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.openjdk.jmh.annotations.*;
 
@@ -28,7 +29,13 @@ public class AntlrBenchmark {
     }
 
     @Benchmark
-    public CompilationUnit benchmark() {
+    public ParserRuleContext benchmarkParse() {
+        return parser.parse(input);
+    }
+
+
+    @Benchmark
+    public CompilationUnit benchmarkAST() {
         JavaParser.CompilationUnitContext compilationUnit = parser.parse(input);
         return (CompilationUnit) compilationUnit.accept(new AntlrToJavaParseTreeVisitor());
     }

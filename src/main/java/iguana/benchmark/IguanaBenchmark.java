@@ -22,6 +22,8 @@ public class IguanaBenchmark {
     @Param({""})
     private String path;
 
+    String inputContent;
+
     private Input input;
 
     private IguanaParser parser;
@@ -40,12 +42,20 @@ public class IguanaBenchmark {
         grammar = new DesugarStartSymbol().transform(grammar);
 
         parser = new IguanaParser(grammar);
+
+        inputContent = getFileContent(Paths.get(path));
         input = Input.fromString(getFileContent(Paths.get(path)));
     }
 
     @Benchmark
-    public ParseTreeNode benchmark() {
-        return parser.parse(input);
+    public ParseTreeNode benchmarkParse() {
+        return parser.getParserTree(input);
+    }
+
+    @Benchmark
+    public CompilationUnit benchmarkAST() {
+        ParseTreeNode parserTree = parser.getParserTree(input);
+        return (CompilationUnit) parserTree.accept(new IguanaToJavaParseTreeVisitor(input));
     }
 
 }

@@ -34,7 +34,7 @@ public class ParserBenchmark {
                 .param("path", params)
                 .timeUnit(TimeUnit.MILLISECONDS)
                 .forks(1)
-                .warmupIterations(3)
+                .warmupIterations(5)
                 .measurementIterations(10)
                 .build();
 
