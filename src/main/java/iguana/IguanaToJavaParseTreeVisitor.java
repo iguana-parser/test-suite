@@ -1,29 +1,20 @@
 package iguana;
 
-import iguana.utils.collections.key.IntKey2;
-import iguana.utils.input.Input;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.Block;
 import org.iguana.grammar.symbol.*;
 import org.iguana.parsetree.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
-public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
+public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
 
     private AST ast = AST.newAST(AST.JLS10);
-    private Input input;
-
-    public IguanaToJavaParseTreeVisitor(Input input) {
-        this.input = input;
-    }
 
     @Override
     public Object visitNonterminalNode(NonterminalNode node) {
@@ -1478,104 +1469,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor<Object> {
             fragment.setInitializer(expression);
         }
         return fragment;
-    }
-
-    private Object visitChildren(ParseTreeNode node) {
-        int size = node.children().size();
-
-        if (size == 1) {
-            return node.childAt(0).accept(this);
-        }
-
-        List<Object> result = new ArrayList<>(size);
-
-        for (int i = 0; i < size; i++) {
-            ParseTreeNode child = node.childAt(i);
-            Object childResult = child.accept(this);
-            if (childResult != null) {
-                result.add(childResult);
-            }
-        }
-
-        if (result.isEmpty()) {
-            return null;
-        }
-
-        if (result.size() == 1) {
-            return result.get(0);
-        }
-
-        return result;
-    }
-
-    @Override
-    public ASTNode visitAmbiguityNode(AmbiguityNode node) {
-        throw new RuntimeException("Ambiguity");
-    }
-
-    @Override
-    public ASTNode visitTerminalNode(TerminalNode terminalNode) {
-        return null;
-    }
-
-    @Override
-    public Object visitMetaSymbolNode(MetaSymbolNode node) {
-        Symbol definition = node.getGrammarDefinition();
-
-        // Flatten sequence inside star and plus
-        if (shouldBeFlattened(definition)) {
-            if (definition instanceof Opt) {
-                if (node.children().size() == 0) {
-                    return null;
-                }
-                List<Object> result = (List<Object>) node.childAt(0).accept(this);
-                if (result.size() == 1) {
-                    return result.get(0);
-                }
-                return result;
-            } else {
-                int size = node.children().size();
-                List<Object> result = new ArrayList<>(size);
-                for (int i = 0; i < size; i++) {
-                    ParseTreeNode child = node.childAt(i);
-                    result.addAll((List<Object>) child.accept(this));
-                }
-                return result;
-            }
-        }
-
-        if (definition instanceof Star || definition instanceof Plus || definition instanceof Sequence) {
-            List<Object> result = new ArrayList<>(node.children().size());
-            for (int i = 0; i < node.children().size(); i++) {
-                ParseTreeNode child = node.childAt(i);
-                Object childResult = child.accept(this);
-                if (childResult != null) {
-                    result.add(child.accept(this));
-                }
-            }
-            return result;
-        } else if (definition instanceof Alt) {
-            return node.childAt(0).accept(this);
-        } else { // Opt
-            if (node.children().size() == 0) {
-                return null;
-            }
-            return node.childAt(0).accept(this);
-        }
-    }
-
-    private static boolean shouldBeFlattened(Symbol symbol) {
-        return (symbol instanceof Star || symbol instanceof Plus || symbol instanceof Opt) && getSymbol(symbol) instanceof Sequence;
-    }
-
-    private static Symbol getSymbol(Symbol symbol) {
-        if (symbol instanceof Star) {
-            return ((Star) symbol).getSymbol();
-        } else if (symbol instanceof Plus) {
-            return ((Plus) symbol).getSymbol();
-        } else if (symbol instanceof Opt) {
-            return ((Opt) symbol).getSymbol();
-        } else throw new RuntimeException("Unsupported symbol " + symbol);
     }
 
     private SimpleName getIdentifier(ParseTreeNode node) {
