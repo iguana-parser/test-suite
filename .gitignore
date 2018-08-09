@@ -1,3 +1,5 @@
 .idea
 target
 test-suite.iml
+*.csv
+*.txt
