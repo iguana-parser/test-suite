@@ -29,14 +29,8 @@ public class AntlrBenchmark {
     }
 
     @Benchmark
-    public ParserRuleContext benchmarkParse() {
+    public ParserRuleContext benchmark() {
         return parser.parse(input);
     }
 
-
-    @Benchmark
-    public CompilationUnit benchmarkAST() {
-        JavaParser.CompilationUnitContext compilationUnit = parser.parse(input);
-        return (CompilationUnit) compilationUnit.accept(new AntlrToJavaParseTreeVisitor());
-    }
 }

@@ -52,10 +52,4 @@ public class IguanaBenchmark {
         return parser.getParserTree(input);
     }
 
-    @Benchmark
-    public CompilationUnit benchmarkAST() {
-        ParseTreeNode parserTree = parser.getParserTree(input);
-        return (CompilationUnit) parserTree.accept(new IguanaToJavaParseTreeVisitor());
-    }
-
 }

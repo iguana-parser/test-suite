@@ -26,7 +26,6 @@ public class ParserBenchmark {
         String[] params = getFiles(getJDK7SourceLocation(), ".java")
                 .stream()
                 .map(Path::toString)
-                .limit(10)
                 .collect(toList()).toArray(new String[]{});
 
         Options options = new OptionsBuilder()
@@ -37,7 +36,6 @@ public class ParserBenchmark {
                 .forks(1)
                 .warmupIterations(5)
                 .measurementIterations(10)
-                .output(benchmarkName + ".txt")
                 .resultFormat(CSV)
                 .result(benchmarkName + ".csv")
                 .build();
