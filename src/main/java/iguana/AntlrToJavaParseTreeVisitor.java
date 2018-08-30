@@ -765,7 +765,7 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
                 return fieldDeclaration;
             }
         } else {
-            throw new RuntimeException();
+            return ctx.getChild(0).accept(this);
         }
     }
 
