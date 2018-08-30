@@ -1550,7 +1550,6 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
                 }
 
                 classInstanceCreation.setExpression(expression);
-                Type type = ast.newSimpleType(getIdentifier(node.childAt(2)));
 
                 List<Expression> arguments = (List<Expression>) node.childAt(4).accept(this);
                 classInstanceCreation.arguments().addAll(arguments);
@@ -1559,6 +1558,8 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
                 if (typeArguments != null) {
                     classInstanceCreation.typeArguments().addAll(typeArguments);
                 }
+
+                Type type = ast.newSimpleType(getIdentifier(node.childAt(2)));
 
                 List<Type> typeArgumentsOrDiamond = (List<Type>) node.childAt(3).accept(this);
                 if (typeArgumentsOrDiamond != null) {

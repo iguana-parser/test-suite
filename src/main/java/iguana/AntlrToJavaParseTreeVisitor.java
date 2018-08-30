@@ -1089,15 +1089,23 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
             return superMethodInvocation;
         } else if (ctx.NEW() != null) {
             ClassInstanceCreation classInstanceCreation = ast.newClassInstanceCreation();
+
             if (ctx.innerCreator().classCreatorRest().classBody() != null) {
                 AnonymousClassDeclaration anonymousClassDeclaration = ast.newAnonymousClassDeclaration();
                 anonymousClassDeclaration.bodyDeclarations().addAll(createList(ctx.innerCreator().classCreatorRest().classBody().classBodyDeclaration()));
                 classInstanceCreation.setAnonymousClassDeclaration(anonymousClassDeclaration);
             }
 
-            // TODO: what about nonWildcardTypeArguments? add parametrized types
+
+            Type type = ast.newSimpleType(getIdentifier(ctx.innerCreator().IDENTIFIER()));
+            if (ctx.innerCreator().nonWildcardTypeArgumentsOrDiamond() != null) {
+                List<ASTNode> typeParameters = createList(ctx.innerCreator().nonWildcardTypeArgumentsOrDiamond().nonWildcardTypeArguments().typeList().typeType());
+                type = ast.newParameterizedType(type);
+                ((ParameterizedType) type).typeArguments().addAll(typeParameters);
+            }
+
             classInstanceCreation.setExpression((Expression) ctx.expression().accept(this));
-            classInstanceCreation.setType(ast.newSimpleType(getIdentifier(ctx.innerCreator().IDENTIFIER())));
+            classInstanceCreation.setType(type);
             classInstanceCreation.arguments().addAll(getArguments(ctx.innerCreator().classCreatorRest().arguments()));
             if (ctx.nonWildcardTypeArguments() != null) {
                 classInstanceCreation.typeArguments().addAll(createList(ctx.nonWildcardTypeArguments().typeList().typeType()));

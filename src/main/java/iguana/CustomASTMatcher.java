@@ -62,4 +62,17 @@ public class CustomASTMatcher extends ASTMatcher {
         return result;
     }
 
+    /**
+     * The max negative number is presented in the Eclipse AST as a number literal instead of a Prefix (unary minus)
+     * expression.
+     */
+    public boolean match(PrefixExpression node, Object other) {
+        if (other instanceof NumberLiteral) {
+            if (((NumberLiteral) other).getToken().equals("-2147483648")) {
+                return node.toString().equals("-2147483648");
+            }
+        }
+        return super.match(node, other);
+    }
+
 }
