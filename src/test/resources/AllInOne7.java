@@ -140,6 +140,8 @@ public class LexerTest {
         result <<= x;
         result >>= x;
         result >>>= x;
+
+        result = (byte) x++; // Cast and postfix operators
     }
 
     public static void methodCalls() {
@@ -235,7 +237,7 @@ public class HelloWorld {
         // Jump statements -------------------
         // Label
         start:
-            someMethod();
+        someMethod();
 
         // break
         for (int i = 0; i < 10; i++) {
@@ -246,12 +248,12 @@ public class HelloWorld {
         }
 
         outer:
-            for (int i = 0; i < 10; i++) {
-                while (true) {
-                    break outer;
-                }
+        for (int i = 0; i < 10; i++) {
+            while (true) {
+                break outer;
             }
-            // Will break to this point
+        }
+        // Will break to this point
 
         // continue
         int ch;
@@ -309,7 +311,7 @@ public class HelloWorld {
 
         // try-with-resources statement
         try (FileOutputStream fos = new FileOutputStream("filename");
-            XMLEncoder xEnc = new XMLEncoder(fos))
+             XMLEncoder xEnc = new XMLEncoder(fos))
         {
             xEnc.writeObject(object);
         } catch (IOException ex) {
@@ -613,7 +615,7 @@ class Dummy {
 
 class Dummy {
     @BlockingOperations(/*mandatory*/ fileSystemOperations = true,
-    /*optional*/ networkOperations = true)
+            /*optional*/ networkOperations = true)
     void openOutputStream() { //Annotated method
     }
 
@@ -678,4 +680,10 @@ class IntegerArray implements Expandable<Integer> {
 // Annotation type definition
 public @interface Bean {
     public static final String ASDF = "ASDF";
+}
+
+class SuperCall {
+    void test() {
+        return new A<>(super.<T>A(size));
+    }
 }

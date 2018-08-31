@@ -13,10 +13,12 @@ import org.iguana.parser.IguanaParser;
 import org.iguana.parsetree.ParseTreeNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 
@@ -63,6 +65,23 @@ class TestIguanaASTs {
 
             assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
         })).collect(toList());
+    }
+
+
+    @Test
+    void testAllInOne() throws Exception {
+        String inputContent = getFileContent(Paths.get(this.getClass().getResource("/AllInOne7.java").toURI()));
+        Input input = Input.fromString(inputContent);
+
+        ParseTreeNode parseTreeNode = parser.getParserTree(input);
+        assertNotNull(parseTreeNode);
+
+        ASTNode iguanaResult = (ASTNode) parseTreeNode.accept(new IguanaToJavaParseTreeVisitor());
+
+        ASTParser astParser = newASTParser(inputContent);
+        CompilationUnit eclipseJDTResult = (CompilationUnit) astParser.createAST(null);
+
+        assertTrue(iguanaResult.subtreeMatch(new CustomASTMatcher(), eclipseJDTResult));
     }
 
 }

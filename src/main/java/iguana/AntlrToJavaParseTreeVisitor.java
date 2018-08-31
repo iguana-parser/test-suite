@@ -1124,11 +1124,25 @@ public class AntlrToJavaParseTreeVisitor extends JavaParserBaseVisitor<ASTNode> 
                 superMethodInvocation.arguments().addAll(getArguments(suffixContext.arguments()));
                 return superMethodInvocation;
             } else {
+                Expression expression = (Expression) ctx.expression().accept(this);
+                SimpleName name = getIdentifier(suffixContext.IDENTIFIER());
+                List<ASTNode> typeArguments = createList(ctx.explicitGenericInvocation().nonWildcardTypeArguments().typeList().typeType());
+                List<Expression> arguments = getArguments(suffixContext.arguments());
+
+                // The same hack as before
+                if (expression instanceof SuperFieldAccess) {
+                    SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
+                    superMethodInvocation.setName(name);
+                    superMethodInvocation.typeArguments().addAll(typeArguments);
+                    superMethodInvocation.arguments().addAll(arguments);
+                    return superMethodInvocation;
+                }
+
                 MethodInvocation methodInvocation = ast.newMethodInvocation();
-                methodInvocation.setExpression((Expression) ctx.expression().accept(this));
-                methodInvocation.typeArguments().addAll(createList(ctx.explicitGenericInvocation().nonWildcardTypeArguments().typeList().typeType()));
-                methodInvocation.setName(getIdentifier(suffixContext.IDENTIFIER()));
-                methodInvocation.arguments().addAll(getArguments(suffixContext.arguments()));
+                methodInvocation.setExpression(expression);
+                methodInvocation.setName(name);
+                methodInvocation.typeArguments().addAll(typeArguments);
+                methodInvocation.arguments().addAll(arguments);
                 return methodInvocation;
             }
         }

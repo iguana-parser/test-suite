@@ -434,6 +434,10 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
         if (arguments != null) {
             SuperMethodInvocation superMethodInvocation = ast.newSuperMethodInvocation();
             superMethodInvocation.setName(getIdentifier(node.childAt(2)));
+            List<Type> typeArguments = (List<Type>) node.childAt(1).accept(this);
+            if (typeArguments != null) {
+                superMethodInvocation.typeArguments().addAll(typeArguments);
+            }
             superMethodInvocation.arguments().addAll(arguments);
             return superMethodInvocation;
         } else {

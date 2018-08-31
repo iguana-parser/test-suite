@@ -486,10 +486,10 @@ expression
     | array=expression '[' index=expression ']'                             #arrayAccessExpr
     | methodCall                                                            #methodCallExpr
     | NEW creator                                                           #newExpr
-    | '(' typeType ')' expression                                           #typeCastExpr
     | expression postfix=('++' | '--')                                      #postfixExpr
     | prefix=('+'|'-'|'++'|'--') expression                                 #prefixExpr
     | prefix=('~'|'!') expression                                           #prefixExpr
+    | '(' typeType ')' expression                                           #typeCastExpr
     | left=expression bop=('*'|'/'|'%') right=expression                    #infixExpr
     | left=expression bop=('+'|'-') right=expression                        #infixExpr
     | left=expression shiftOp right=expression    #infixExpr
