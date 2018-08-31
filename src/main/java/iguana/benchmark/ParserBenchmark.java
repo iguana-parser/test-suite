@@ -11,19 +11,38 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import static iguana.Utils.getFiles;
-import static iguana.Utils.getJDK7SourceLocation;
+import static iguana.Utils.getSourceDir;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 import static org.openjdk.jmh.results.format.ResultFormatType.CSV;
 
 public class ParserBenchmark {
 
     public static void main(String[] args) throws RunnerException, IOException {
+        if (args.length == 0) {
+            System.out.println("Missing parameters: ParserBenchmark <benchmarkName> <projectName> <warmupIter> <measurementIter>");
+        }
         String benchmarkName = args[0];
-        if (benchmarkName == null) {
-            throw new RuntimeException("Benchmark name is empty, should be: Antlr, EclipseJDT or Iguana");
+        String projectName = args[1];
+
+        requireNonNull(benchmarkName, "Benchmark name is empty, should be: Antlr, EclipseJDT or Iguana");
+        requireNonNull(projectName, "Please provide a valid project name in the source folder");
+
+        int warmupIterations = 5;
+        if (args[2] != null) {
+            warmupIterations = Integer.parseInt(args[2]);
         }
 
-        String[] params = getFiles(getJDK7SourceLocation(), ".java")
+        int measurementIterations = 10;
+        if (args[3] != null) {
+            measurementIterations = Integer.parseInt(args[3]);
+        }
+
+        if (getSourceDir() == null) {
+            throw new RunnerException("The environment variable 'SOURCE_DIR' is not set");
+        }
+
+        String[] params = getFiles(getSourceDir() + "/" + projectName, ".java")
                 .stream()
                 .map(Path::toString)
                 .collect(toList()).toArray(new String[]{});
@@ -34,10 +53,10 @@ public class ParserBenchmark {
                 .param("path", params)
                 .timeUnit(TimeUnit.MILLISECONDS)
                 .forks(1)
-                .warmupIterations(5)
-                .measurementIterations(10)
+                .warmupIterations(warmupIterations)
+                .measurementIterations(measurementIterations)
                 .resultFormat(CSV)
-                .result(benchmarkName + ".csv")
+                .result(benchmarkName + "_" + projectName + ".csv")
                 .jvmArgs("-Xss4m")
                 .build();
 

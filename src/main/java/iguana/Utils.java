@@ -2,6 +2,12 @@ package iguana;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.iguana.grammar.Grammar;
+import org.iguana.grammar.transformation.DesugarPrecedenceAndAssociativity;
+import org.iguana.grammar.transformation.DesugarStartSymbol;
+import org.iguana.grammar.transformation.EBNFToBNF;
+import org.iguana.grammar.transformation.LayoutWeaver;
+import org.iguana.parser.IguanaParser;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -19,10 +25,8 @@ import static org.eclipse.jdt.core.JavaCore.COMPILER_SOURCE;
 
 public class Utils {
 
-    private static final String JDK7_DIR = "JDK7_DIR";
-
-    public static String getJDK7SourceLocation() {
-        return System.getenv(JDK7_DIR);
+    public static String getSourceDir() {
+        return System.getenv("SOURCE_DIR");
     }
 
     public static String getFileContent(Path path) throws IOException {
@@ -48,6 +52,21 @@ public class Utils {
         astParser.setSource(input.toCharArray());
         astParser.setKind(ASTParser.K_COMPILATION_UNIT);
         return astParser;
+    }
+
+    public static IguanaParser getIguanaJavaParser() {
+        Grammar grammar = Grammar.load(Utils.class.getResourceAsStream("/JavaNat"));
+
+        grammar = new EBNFToBNF().transform(grammar);
+
+        DesugarPrecedenceAndAssociativity precedence = new DesugarPrecedenceAndAssociativity();
+        precedence.setOP2();
+
+        grammar = precedence.transform(grammar);
+        grammar = new LayoutWeaver().transform(grammar);
+        grammar = new DesugarStartSymbol().transform(grammar);
+
+        return new IguanaParser(grammar);
     }
 
     static Map<String, String> getCompilerOptions() {

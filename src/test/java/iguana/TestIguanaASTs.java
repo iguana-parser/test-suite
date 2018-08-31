@@ -47,7 +47,7 @@ class TestIguanaASTs {
 
     @TestFactory
     Collection<DynamicTest> testIguana() throws Exception {
-        List<Path> javaFiles = getFiles(getJDK7SourceLocation(), ".java");
+        List<Path> javaFiles = getFiles(getSourceDir(), ".java");
 
         return javaFiles.stream().map(path -> DynamicTest.dynamicTest(path.toString(), () -> {
             String inputContent = getFileContent(path);

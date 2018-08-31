@@ -31,6 +31,6 @@ public class AntlrJavaParser {
             System.out.println(msg + " line: " + line + " column: " + charPositionInLine);
             throw new ParseCancellationException();
         }
-
     }
+
 }

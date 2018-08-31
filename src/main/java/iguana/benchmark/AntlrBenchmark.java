@@ -1,10 +1,7 @@
 package iguana.benchmark;
 
-import antlr4java.JavaParser;
 import iguana.AntlrJavaParser;
-import iguana.AntlrToJavaParseTreeVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
