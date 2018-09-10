@@ -195,11 +195,17 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
             case "PrimitiveType":
                 return visitPrimitiveType(node);
 
-            case "Identifier":
-                return visitIdentifier(node);
         }
 
         return visitChildren(node);
+    }
+
+    @Override
+    public Object visitTerminalNode(TerminalNode node) {
+        if (node.getName().equals("Identifier")) {
+            return ast.newSimpleName(node.getText());
+        }
+        return null;
     }
 
     private Name visitIdentifier(NonterminalNode node) {
