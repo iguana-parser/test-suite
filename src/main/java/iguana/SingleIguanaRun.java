@@ -13,8 +13,6 @@ import static iguana.Utils.*;
 
 public class SingleIguanaRun {
 
-    public static ParseTreeNode result;
-
     public static void main(String[] args) throws IOException {
         String projectName = args[0];
 
@@ -22,13 +20,20 @@ public class SingleIguanaRun {
             throw new RuntimeException("Please provide a valid project name in the source folder");
         }
 
-        IguanaParser iguanaParser = getIguanaJavaParser();
+        IguanaParser iguanaParser = new IguanaParser(getJavaGrammar());
 
         List<Path> files = getFiles(getSourceDir() + "/" + projectName, ".java");
 
+        int count = 0;
+
         for (Path path : files) {
             String input = getFileContent(Paths.get(path.toString()));
-            result = iguanaParser.getParserTree(Input.fromString(input));
+            ParseTreeNode parserTree = iguanaParser.getParserTree(Input.fromString(input));
+            if (parserTree != null) {
+                count++;
+            }
         }
+
+        System.out.println(count);
     }
 }

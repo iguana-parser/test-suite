@@ -8,7 +8,7 @@ import org.openjdk.jmh.annotations.*;
 import java.nio.file.Paths;
 
 import static iguana.Utils.getFileContent;
-import static iguana.Utils.getIguanaJavaParser;
+import static iguana.Utils.getJavaGrammar;
 
 @State(Scope.Benchmark)
 public class IguanaBenchmark {
@@ -24,7 +24,7 @@ public class IguanaBenchmark {
 
     @Setup
     public void init() throws Exception {
-        parser = getIguanaJavaParser();
+        parser = new IguanaParser(getJavaGrammar());
 
         inputContent = getFileContent(Paths.get(path));
         input = Input.fromString(getFileContent(Paths.get(path)));

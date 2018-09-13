@@ -58,6 +58,7 @@ public class ParserBenchmark {
                 .resultFormat(CSV)
                 .result(benchmarkName + "_" + projectName + ".csv")
                 .jvmArgs("-Xss4m")
+                .jvmArgs("-XX:+UseG1GC")
                 .build();
 
         new Runner(options).run();

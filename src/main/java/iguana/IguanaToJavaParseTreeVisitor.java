@@ -299,7 +299,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
     // "static"? Block
     private Object visitInitializer(NonterminalNode node) {
         Initializer initializer = ast.newInitializer();
-        if (node.childAt(0).children().size() > 0) {
+        if (node.childAt(0).getText().length() > 0) {
             initializer.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD));
         }
         initializer.setBody((Block) node.childAt(1).accept(this));
@@ -1293,7 +1293,7 @@ public class IguanaToJavaParseTreeVisitor implements ParseTreeVisitor {
     // ImportDeclaration: "import"  "static"?  QualifiedIdentifier ("." "*")? ";"
     private ImportDeclaration visitImportDeclaration(NonterminalNode node) {
         ImportDeclaration importDeclaration = ast.newImportDeclaration();
-        if (node.childAt(1).children().size() > 0) { // "static"?
+        if (node.childAt(1).getText().length() > 0) { // "static"?
             importDeclaration.setStatic(true);
         }
         importDeclaration.setName((Name) node.childAt(2).accept(this));

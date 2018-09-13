@@ -54,7 +54,7 @@ public class Utils {
         return astParser;
     }
 
-    public static IguanaParser getIguanaJavaParser() {
+    public static Grammar getJavaGrammar() {
         Grammar grammar = Grammar.load(Utils.class.getResourceAsStream("/JavaNat"));
 
         grammar = new EBNFToBNF().transform(grammar);
@@ -65,8 +65,7 @@ public class Utils {
         grammar = precedence.transform(grammar);
         grammar = new LayoutWeaver().transform(grammar);
         grammar = new DesugarStartSymbol().transform(grammar);
-
-        return new IguanaParser(grammar);
+        return grammar;
     }
 
     static Map<String, String> getCompilerOptions() {

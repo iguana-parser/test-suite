@@ -11,8 +11,6 @@ import static iguana.Utils.*;
 
 public class SingleAntlrRun {
 
-    public static JavaParser.CompilationUnitContext result;
-
     public static void main(String[] args) throws IOException {
         String projectName = args[0];
 
@@ -24,10 +22,16 @@ public class SingleAntlrRun {
 
         List<Path> files = getFiles(getSourceDir() + "/" + projectName, ".java");
 
+        int count = 0;
+
         for (Path path : files) {
             String input = getFileContent(Paths.get(path.toString()));
-            result = antlrParser.parse(input);
+            JavaParser.CompilationUnitContext result = antlrParser.parse(input);
+            if (result != null) {
+                count++;
+            }
         }
 
+        System.out.println(count);
     }
 }
