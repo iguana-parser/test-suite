@@ -8,5 +8,5 @@ caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Iguan
 caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Antlr jdk7u-jdk 5 10 &&
 caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Antlr elasticsearch 5 10 &&
 caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Antlr guava 5 10 &&
-caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Antlr RxJava 5 10
+caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Antlr RxJava 5 10 &&
 caffeinate java -cp target/benchmarks.jar iguana.benchmark.ParserBenchmark Antlr junit4 5 10

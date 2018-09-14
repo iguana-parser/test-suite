@@ -16,8 +16,6 @@ public class IguanaBenchmark {
     @Param({""})
     private String path;
 
-    String inputContent;
-
     private Input input;
 
     private IguanaParser parser;
@@ -25,8 +23,6 @@ public class IguanaBenchmark {
     @Setup
     public void init() throws Exception {
         parser = new IguanaParser(getJavaGrammar());
-
-        inputContent = getFileContent(Paths.get(path));
         input = Input.fromString(getFileContent(Paths.get(path)));
     }
 
