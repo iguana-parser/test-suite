@@ -38,7 +38,7 @@ draw_relative_plot <- function(name, displayName, data) {
 
 all_draw_relative_plot <- function(iguana, antlr) {
 	output <- paste("all_relative.pdf", sep="")
-	pdf(output, width=12, height=10, family="CM Roman")
+	pdf(output, width=8, height=8, family="CM Roman")
 
 	relative <- list();
 	for (i in 1:6) {
@@ -47,9 +47,9 @@ all_draw_relative_plot <- function(iguana, antlr) {
 
 	labels <- c("Junit 4", "Elastic Search", "Guava", "RxJava", "OpenJDK 7", "All Projects")
 
-	par(mar=c(6, 5, 1, 1))
+	par(mar=c(2, 2, 1, 1))
 	boxplot(relative[[1]], relative[[2]], relative[[3]], relative[[4]], relative[[5]], relative[[6]], 
-		horizontal=TRUE, names=labels, boxwex=0.5, outline=FALSE)
+		horizontal=TRUE, names=labels, boxwex=0.5, outline=FALSE, cex=1.5)
 
 	for (i in 1:6) {
 		text(x = boxplot.stats(round(relative[[i]], 2))$stats[1], labels = boxplot.stats(round(relative[[i]], 2))$stats[1], y = i - 1 + 0.62)
