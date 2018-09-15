@@ -60,6 +60,30 @@ all_draw_relative_plot <- function(iguana, antlr) {
 	dev.off()
 }
 
+draw_hist <- function() {
+	data <- data.frame()
+
+	for (i in 1:5) {
+		name <- names[i]
+		data <- rbind(data, read.csv(paste("benchmark_data/", name, "_file_size.csv", sep=""), header=TRUE, sep=",", dec=",", stringsAsFactors=FALSE))
+	}
+	pdf("histogram.pdf", width=8, height=8, family="CM Roman")
+	hist(data$size, breaks = 100)
+	dev.off()	
+
+	embed_fonts("histogram.pdf", outfile="embedded_histogram.pdf")
+}
+
+calc_max <- function(iguana, antlr) {
+	relative <- iguana$Score / antlr$Score
+	data <- iguana
+	data$relative <- iguana$Score / antlr$Score
+
+	data <- data[order(data$relative),]
+	print(head(data, 10))
+	print(tail(data, 10))
+}
+
 names <- c("junit4", "guava", "elasticsearch", "RxJava", "jdk7u-jdk", "total")
 displayNames <- c("Junit 4", "Guava", "Elastic Search", "RxJava", "OpenJDK 7", "All Projects")
 
@@ -113,6 +137,10 @@ for (name in names) {
 	embedded_output <- paste("embedded_", output, sep="")
 	embed_fonts(output, outfile=embedded_output)
 }
+
+draw_hist()
+
+calc_max(data_iguana[[6]], data_antlr[[6]])
 
 embed_fonts("total.pdf", outfile="embedded_total.pdf")
 embed_fonts("all_relative.pdf", outfile="embedded_all_relative.pdf")
