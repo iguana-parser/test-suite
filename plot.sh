@@ -29,26 +29,34 @@ draw_relative_plot <- function(name, displayName, data) {
 	boxplot(data, horizontal=TRUE, names = c("Relative performance"), outline=FALSE)
 	text(x = boxplot.stats(round(data, 2))$stats, labels = boxplot.stats(round(data, 2))$stats, y = 0.55)
 
+	text(x = boxplot.stats(round(data, 2))$stats[1], labels = boxplot.stats(round(data, 2))$stats[1], y = 0.62)
+	text(x = boxplot.stats(round(data, 2))$stats[3], labels = boxplot.stats(round(data, 2))$stats[3], y = 0.62)
+	text(x = boxplot.stats(round(data, 2))$stats[5], labels = boxplot.stats(round(data, 2))$stats[5], y = 0.62)
+
 	dev.off()
 }
 
 all_draw_relative_plot <- function(iguana, antlr) {
 	output <- paste("all_relative.pdf", sep="")
-	pdf(output, width=12, height=6, family="CM Roman")
+	pdf(output, width=12, height=10, family="CM Roman")
 
-	relative1 <- iguana[[1]]$Score / antlr[[1]]$Score
-	relative2 <- iguana[[2]]$Score / antlr[[2]]$Score
-	relative3 <- iguana[[3]]$Score / antlr[[3]]$Score
-	relative4 <- iguana[[4]]$Score / antlr[[4]]$Score
-	relative5 <- iguana[[5]]$Score / antlr[[5]]$Score
-	relative6 <- iguana[[6]]$Score / antlr[[6]]$Score
+	relative <- list();
+	for (i in 1:6) {
+		relative[[i]] <- iguana[[i]]$Score / antlr[[i]]$Score	
+	}
 
 	labels <- c("Junit 4", "Elastic Search", "Guava", "RxJava", "OpenJDK 7", "All Projects")
 
-	par(mar=c(7, 6.5, 1, 1))
-	boxplot(relative1, relative2, relative3, relative4, relative5, relative6, 
-		horizontal=TRUE, names=labels, 
-		las=2, outline=FALSE, xlab="Relative running time of Iguana compared to ANTLR for each input file.")
+	par(mar=c(6, 5, 1, 1))
+	boxplot(relative[[1]], relative[[2]], relative[[3]], relative[[4]], relative[[5]], relative[[6]], 
+		horizontal=TRUE, names=labels, boxwex=0.5, outline=FALSE)
+
+	for (i in 1:6) {
+		text(x = boxplot.stats(round(relative[[i]], 2))$stats[1], labels = boxplot.stats(round(relative[[i]], 2))$stats[1], y = i - 1 + 0.62)
+		text(x = boxplot.stats(round(relative[[i]], 2))$stats[3], labels = boxplot.stats(round(relative[[i]], 2))$stats[3], y = i - 1 + 0.62)
+		text(x = boxplot.stats(round(relative[[i]], 2))$stats[5], labels = boxplot.stats(round(relative[[i]], 2))$stats[5], y = i - 1 + 0.62)		
+	}
+
 	dev.off()
 }
 
